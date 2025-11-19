@@ -21,9 +21,12 @@ export default function HomePage() {
 
   const handleJoinSession = () => {
     if (!name.trim() || !sessionCode.trim()) return;
-    const participant = sessionStore.joinSession(sessionCode.toUpperCase(), name);
+    const code = sessionCode.toUpperCase();
+    const participant = sessionStore.joinSession(code, name);
     if (participant) {
-      navigate(`/session/${sessionCode.toUpperCase()}?participantId=${participant.id}`);
+      navigate(`/session/${code}?participantId=${participant.id}`);
+    } else {
+      alert('Session not found. Please check the session code and try again.');
     }
   };
 
