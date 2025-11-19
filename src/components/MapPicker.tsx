@@ -14,8 +14,8 @@ export default function MapPicker({ onLocationSelect, onCancel, initialLat, init
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [marker, setMarker] = useState<google.maps.Marker | null>(null);
-  const [selectedLat, setSelectedLat] = useState(initialLat || 40.7128);
-  const [selectedLng, setSelectedLng] = useState(initialLng || -74.0060);
+  const [selectedLat, setSelectedLat] = useState(initialLat || 33.8622);
+  const [selectedLng, setSelectedLng] = useState(initialLng || -118.3998);
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
 

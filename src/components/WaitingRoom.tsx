@@ -54,7 +54,7 @@ export default function WaitingRoom({ session, currentParticipantId, onReady, on
   }, [currentParticipantId]);
 
   const handleCopyLink = () => {
-    const link = `${window.location.origin}/session/${session.id}`;
+    const link = `${window.location.origin}/join/${session.id}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     toast({
@@ -73,7 +73,7 @@ export default function WaitingRoom({ session, currentParticipantId, onReady, on
   };
 
   const handleShare = async () => {
-    const link = `${window.location.origin}/session/${session.id}`;
+    const link = `${window.location.origin}/join/${session.id}`;
     if (navigator.share) {
       try {
         await navigator.share({

@@ -106,25 +106,33 @@ export async function searchNearbyVenues(
           if (place.price_level && place.price_level > maxPriceLevel) return false;
           return true;
         })
-        .map((place) => ({
-          id: place.place_id || Math.random().toString(36),
-          name: place.name || 'Unknown',
-          address: place.vicinity || '',
-          lat: place.geometry?.location?.lat() || 0,
-          lng: place.geometry?.location?.lng() || 0,
-          rating: place.rating,
-          priceLevel: place.price_level,
-          photoUrl: place.photos && place.photos.length > 0
-            ? place.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })
-            : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
-          types: place.types || [],
-          distance: calculateDistance(
+        .map((place) => {
+          const lat = place.geometry?.location?.lat() || 0;
+          const lng = place.geometry?.location?.lng() || 0;
+          const primaryType = place.types?.[0] || 'restaurant';
+          
+          return {
+            id: place.place_id || Math.random().toString(36),
+            name: place.name || 'Unknown',
+            category: primaryType.replace(/_/g, ' '),
+            address: place.vicinity || '',
             lat,
             lng,
-            place.geometry?.location?.lat() || 0,
-            place.geometry?.location?.lng() || 0
-          ),
-        }))
+            location: { lat, lng },
+            rating: place.rating,
+            priceLevel: place.price_level,
+            photoUrl: place.photos && place.photos.length > 0
+              ? place.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })
+              : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+            types: place.types || [],
+            distance: calculateDistance(
+              lat,
+              lng,
+              place.geometry?.location?.lat() || 0,
+              place.geometry?.location?.lng() || 0
+            ),
+          };
+        })
         .sort((a, b) => {
           // Sort by rating first, then by distance
           if (b.rating && a.rating) {

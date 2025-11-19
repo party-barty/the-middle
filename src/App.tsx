@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import SessionPage from "./pages/SessionPage";
 import { Toaster } from "./components/ui/toaster";
@@ -10,6 +10,7 @@ function App() {
       <Suspense fallback={<p>Loading...</p>}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/join/:sessionId" element={<HomePage />} />
           <Route path="/session/:sessionId" element={<SessionPage />} />
         </Routes>
       </Suspense>

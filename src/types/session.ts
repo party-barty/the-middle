@@ -19,6 +19,7 @@ export interface Participant {
 export interface Venue {
   id: string;
   name: string;
+  category: string;
   address: string;
   lat: number;
   lng: number;
@@ -27,6 +28,10 @@ export interface Venue {
   photoUrl?: string;
   types?: string[];
   distance?: number;
+  location: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export interface Vote {
@@ -47,4 +52,42 @@ export interface Session {
   hostId?: string;
   isLocked?: boolean;
   maxParticipants?: number;
+}
+
+export interface SessionHistory {
+  id: string;
+  sessionId: string;
+  participantId: string;
+  matchedVenue: {
+    id: string;
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+    photoUrl?: string;
+    rating?: number;
+  } | null;
+  participantNames: string[];
+  completedAt: string;
+}
+
+export interface VenueReview {
+  id: string;
+  sessionHistoryId: string;
+  participantId: string;
+  venueId: string;
+  venueName: string;
+  rating: number;
+  reviewText?: string;
+  isBlocked: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlockedVenue {
+  id: string;
+  participantId: string;
+  venueId: string;
+  venueName: string;
+  blockedAt: string;
 }

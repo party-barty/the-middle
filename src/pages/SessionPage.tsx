@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { sessionStore } from '@/lib/session-store';
 import { searchNearbyVenues, VenueSearchOptions } from '@/lib/maps';
-import { Session } from '@/types/session';
+import { Session, Venue } from '@/types/session';
 import LocationSetup from '@/components/LocationSetup';
 import WaitingRoom from '@/components/WaitingRoom';
 import MapView from '@/components/MapView';
@@ -10,10 +10,12 @@ import SwipeDeck from '@/components/SwipeDeck';
 import MatchScreen from '@/components/MatchScreen';
 import VenueFilters, { VenueFilterOptions } from '@/components/VenueFilters';
 import ParticipantSidebar from '@/components/ParticipantSidebar';
+import ProfileSettings from '@/components/ProfileSettings';
+import SessionInsights from '@/components/SessionInsights';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Users, MapPin, Lock, Unlock, Home, RefreshCw } from 'lucide-react';
+import { Copy, Users, MapPin, Lock, Unlock, Home, RefreshCw, Settings, TrendingUp } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function SessionPage() {
@@ -25,13 +27,17 @@ export default function SessionPage() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [locationSet, setLocationSet] = useState(false);
-  const [venuesLoaded, setVenuesLoaded] = useState(false);
   const [filters, setFilters] = useState<VenueFilterOptions>({
-    radius: 2000,
-    types: ['restaurant', 'cafe', 'bar'],
+    radius: 5000,
+    types: [],
     minRating: 0,
     maxPriceLevel: 4,
   });
+  const [venuesLoaded, setVenuesLoaded] = useState(false);
+  const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+  const [allReady, setAllReady] = useState(false);
 
   useEffect(() => {
     if (!sessionId || !participantId) {
@@ -128,6 +134,23 @@ export default function SessionPage() {
     navigate('/');
   };
 
+  const handleUpdateProfile = async (updates: Partial<typeof session.participants[0]>) => {
+    if (!sessionId || !participantId) return;
+    
+    if (updates.name) {
+      await sessionStore.updateParticipantName(sessionId, participantId, updates.name);
+    }
+    
+    if (updates.location) {
+      await sessionStore.updateParticipantLocation(sessionId, participantId, updates.location);
+    }
+    
+    toast({
+      title: 'Profile updated',
+      description: 'Your changes have been saved.',
+    });
+  };
+
   const handleVote = async (venueId: string, approved: boolean) => {
     if (!sessionId || !participantId) return;
     await sessionStore.recordVote(sessionId, participantId, venueId, approved ? 'like' : 'pass');
@@ -146,7 +169,7 @@ export default function SessionPage() {
   };
 
   const handleCopySessionLink = () => {
-    const link = `${window.location.origin}/session/${sessionId}`;
+    const link = `${window.location.origin}/join/${sessionId}`;
     navigator.clipboard.writeText(link);
     toast({
       title: 'Link copied!',
@@ -165,18 +188,8 @@ export default function SessionPage() {
     return <LocationSetup onLocationSet={handleLocationSet} currentLocation={currentParticipant?.location} />;
   }
 
-  // Show waiting room if not all participants are ready
-  const allReady = session.participants.every((p) => p.isReady);
-  if (!allReady) {
-    return (
-      <WaitingRoom
-        session={session}
-        currentParticipantId={participantId!}
-        onReady={handleReady}
-        onLeave={handleLeaveSession}
-      />
-    );
-  }
+  // Always show the main view with map - no waiting room blocking
+  // The map will show with default location and update as participants join
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -216,6 +229,24 @@ export default function SessionPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowInsights(true)}
+            className="gap-2"
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span className="hidden sm:inline">Insights</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowProfileSettings(true)}
+            className="gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Profile</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleCopySessionLink}
             className="gap-2"
           >
@@ -229,10 +260,25 @@ export default function SessionPage() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Map Section */}
         <div className="flex-1 relative bg-white border-r border-gray-200">
-          <div className="absolute inset-0 p-4">
+          {/* Waiting for participants banner */}
+          {!allReady && (
+            <div className="absolute top-0 left-0 right-0 z-20 bg-amber-50 border-b border-amber-200 px-4 py-2">
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <Users className="w-4 h-4 text-amber-600" />
+                <span className="text-amber-800 font-medium">
+                  Waiting for {session.participants.filter(p => !p.isReady).length} participant(s) to set their location
+                </span>
+              </div>
+            </div>
+          )}
+          
+          <div className={`absolute inset-0 ${!allReady ? 'pt-10' : ''} p-4`}>
             <MapView
               participants={session.participants}
               midpoint={session.midpoint}
+              venues={session.venues}
+              selectedVenue={selectedVenue}
+              onVenueSelect={setSelectedVenue}
             />
           </div>
 
@@ -292,7 +338,19 @@ export default function SessionPage() {
             <p className="text-sm text-gray-600">Swipe right to like, left to pass</p>
           </div>
           <div className="flex-1 overflow-hidden">
-            {session.venues.length > 0 ? (
+            {!allReady ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-8">
+                  <div className="w-16 h-16 bg-gradient-to-br from-lime-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-lime-600" />
+                  </div>
+                  <p className="text-gray-900 font-semibold mb-2">Waiting for everyone</p>
+                  <p className="text-gray-600 text-sm">
+                    {session.participants.filter(p => !p.isReady).length} participant(s) still setting their location
+                  </p>
+                </div>
+              </div>
+            ) : session.venues.length > 0 ? (
               <SwipeDeck venues={session.venues} onVote={handleVote} />
             ) : (
               <div className="flex items-center justify-center h-full">
@@ -301,6 +359,7 @@ export default function SessionPage() {
                     <MapPin className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-600">Loading venues...</p>
+                  <p className="text-gray-500 text-sm mt-2">Finding the best spots near your midpoint</p>
                 </div>
               </div>
             )}
@@ -321,6 +380,25 @@ export default function SessionPage() {
           onClose={() => {
             // Could reset or navigate away
           }}
+        />
+      )}
+
+      {/* Profile Settings */}
+      {showProfileSettings && (
+        <ProfileSettings
+          participant={currentParticipant}
+          sessionId={sessionId!}
+          onUpdate={handleUpdateProfile}
+          onLeaveSession={handleLeaveSession}
+          onClose={() => setShowProfileSettings(false)}
+        />
+      )}
+
+      {/* Session Insights */}
+      {showInsights && (
+        <SessionInsights
+          session={session}
+          onClose={() => setShowInsights(false)}
         />
       )}
     </div>

@@ -16,7 +16,7 @@ export default function LocationSetup({ onLocationSet }: LocationSetupProps) {
   const [mode, setMode] = useState<'choice' | 'live' | 'manual'>('choice');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState('1141 Manhattan Ave, Hermosa Beach, CA 90254');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; type: 'live' | 'manual' } | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
@@ -192,8 +192,37 @@ export default function LocationSetup({ onLocationSet }: LocationSetupProps) {
   };
 
   const handleManualLocation = () => {
-    if (!address.trim() || predictions.length === 0) return;
-    handlePredictionSelect(predictions[0]);
+    if (!address.trim()) return;
+    
+    // If we have predictions, use the first one
+    if (predictions.length > 0) {
+      handlePredictionSelect(predictions[0]);
+      return;
+    }
+    
+    // Otherwise, geocode the address directly
+    if (!placesService.current) return;
+    
+    setLoading(true);
+    setError('');
+    
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        const location = {
+          lat: results[0].geometry.location.lat(),
+          lng: results[0].geometry.location.lng(),
+          type: 'manual' as const,
+          address: results[0].formatted_address,
+        };
+        setCurrentLocation(location);
+        onLocationSet(location);
+        setMode('manual');
+      } else {
+        setError('Unable to find that address. Please try a different search.');
+      }
+      setLoading(false);
+    });
   };
 
   const handleMapPicker = () => {
@@ -333,7 +362,7 @@ export default function LocationSetup({ onLocationSet }: LocationSetupProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={handleManualLocation}
-                    disabled={loading || !address.trim() || predictions.length === 0}
+                    disabled={loading || !address.trim()}
                     variant="outline"
                     className="h-12 border-2 border-lime-400 hover:bg-lime-50 hover:border-lime-500 font-semibold text-lime-700"
                   >

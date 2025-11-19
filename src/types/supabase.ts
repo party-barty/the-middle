@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_venues: {
+        Row: {
+          blocked_at: string
+          id: string
+          participant_id: string
+          venue_id: string
+          venue_name: string
+        }
+        Insert: {
+          blocked_at?: string
+          id: string
+          participant_id: string
+          venue_id: string
+          venue_name: string
+        }
+        Update: {
+          blocked_at?: string
+          id?: string
+          participant_id?: string
+          venue_id?: string
+          venue_name?: string
+        }
+        Relationships: []
+      }
       participants: {
         Row: {
           avatar: string | null
@@ -73,6 +97,51 @@ export type Database = {
           },
         ]
       }
+      session_history: {
+        Row: {
+          completed_at: string
+          id: string
+          matched_venue_address: string | null
+          matched_venue_id: string | null
+          matched_venue_lat: number | null
+          matched_venue_lng: number | null
+          matched_venue_name: string | null
+          matched_venue_photo_url: string | null
+          matched_venue_rating: number | null
+          participant_id: string
+          participant_names: string[] | null
+          session_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id: string
+          matched_venue_address?: string | null
+          matched_venue_id?: string | null
+          matched_venue_lat?: number | null
+          matched_venue_lng?: number | null
+          matched_venue_name?: string | null
+          matched_venue_photo_url?: string | null
+          matched_venue_rating?: number | null
+          participant_id: string
+          participant_names?: string[] | null
+          session_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          matched_venue_address?: string | null
+          matched_venue_id?: string | null
+          matched_venue_lat?: number | null
+          matched_venue_lng?: number | null
+          matched_venue_name?: string | null
+          matched_venue_photo_url?: string | null
+          matched_venue_rating?: number | null
+          participant_id?: string
+          participant_names?: string[] | null
+          session_id?: string
+        }
+        Relationships: []
+      }
       sessions: {
         Row: {
           created_at: string
@@ -106,9 +175,57 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          is_blocked: boolean
+          participant_id: string
+          rating: number
+          review_text: string | null
+          session_history_id: string
+          updated_at: string
+          venue_id: string
+          venue_name: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          is_blocked?: boolean
+          participant_id: string
+          rating: number
+          review_text?: string | null
+          session_history_id: string
+          updated_at?: string
+          venue_id: string
+          venue_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_blocked?: boolean
+          participant_id?: string
+          rating?: number
+          review_text?: string | null
+          session_history_id?: string
+          updated_at?: string
+          venue_id?: string
+          venue_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_reviews_session_history_id_fkey"
+            columns: ["session_history_id"]
+            isOneToOne: false
+            referencedRelation: "session_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venues: {
         Row: {
           address: string
+          category: string | null
           created_at: string
           distance: number | null
           id: string
@@ -123,6 +240,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          category?: string | null
           created_at?: string
           distance?: number | null
           id: string
@@ -137,6 +255,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          category?: string | null
           created_at?: string
           distance?: number | null
           id?: string
