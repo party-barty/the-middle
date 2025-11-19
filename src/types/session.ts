@@ -10,6 +10,10 @@ export interface Participant {
   name: string;
   location: Location | null;
   isReady: boolean;
+  isHost?: boolean;
+  joinedAt: string;
+  lastActive?: string;
+  avatar?: string;
 }
 
 export interface Venue {
@@ -34,10 +38,13 @@ export interface Vote {
 export interface Session {
   id: string;
   participants: Participant[];
-  midpoint: Location | null;
+  midpoint: { lat: number; lng: number } | null;
   midpointMode: 'dynamic' | 'locked';
   venues: Venue[];
   votes: Vote[];
   matchedVenue: Venue | null;
   createdAt: string;
+  hostId?: string;
+  isLocked?: boolean;
+  maxParticipants?: number;
 }

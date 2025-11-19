@@ -16,9 +16,13 @@ export type Database = {
     Tables: {
       participants: {
         Row: {
+          avatar: string | null
           created_at: string
           id: string
+          is_host: boolean | null
           is_ready: boolean
+          joined_at: string | null
+          last_active: string | null
           location_address: string | null
           location_lat: number | null
           location_lng: number | null
@@ -28,9 +32,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar?: string | null
           created_at?: string
           id: string
+          is_host?: boolean | null
           is_ready?: boolean
+          joined_at?: string | null
+          last_active?: string | null
           location_address?: string | null
           location_lat?: number | null
           location_lng?: number | null
@@ -40,9 +48,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar?: string | null
           created_at?: string
           id?: string
+          is_host?: boolean | null
           is_ready?: boolean
+          joined_at?: string | null
+          last_active?: string | null
           location_address?: string | null
           location_lat?: number | null
           location_lng?: number | null
@@ -64,22 +76,31 @@ export type Database = {
       sessions: {
         Row: {
           created_at: string
+          host_id: string | null
           id: string
+          is_locked: boolean | null
           matched_venue_id: string | null
+          max_participants: number | null
           midpoint_mode: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          host_id?: string | null
           id: string
+          is_locked?: boolean | null
           matched_venue_id?: string | null
+          max_participants?: number | null
           midpoint_mode?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          host_id?: string | null
           id?: string
+          is_locked?: boolean | null
           matched_venue_id?: string | null
+          max_participants?: number | null
           midpoint_mode?: string
           updated_at?: string
         }

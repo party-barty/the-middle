@@ -24,6 +24,9 @@ class SessionStore {
       .insert({
         id: sessionId,
         midpoint_mode: 'dynamic',
+        host_id: participantId,
+        is_locked: false,
+        max_participants: 10,
       });
 
     if (sessionError) {
@@ -31,7 +34,7 @@ class SessionStore {
       throw new Error('Failed to create session');
     }
 
-    // Create participant
+    // Create participant (host)
     const { error: participantError } = await supabase
       .from('participants')
       .insert({
@@ -39,6 +42,9 @@ class SessionStore {
         session_id: sessionId,
         name: participantName,
         is_ready: false,
+        is_host: true,
+        joined_at: new Date().toISOString(),
+        last_active: new Date().toISOString(),
       });
 
     if (participantError) {
@@ -46,21 +52,10 @@ class SessionStore {
       throw new Error('Failed to create participant');
     }
 
-    const session: Session = {
-      id: sessionId,
-      participants: [{
-        id: participantId,
-        name: participantName,
-        location: null,
-        isReady: false,
-      }],
-      midpoint: null,
-      midpointMode: 'dynamic',
-      venues: [],
-      votes: [],
-      matchedVenue: null,
-      createdAt: new Date().toISOString(),
-    };
+    const session = await this.getSession(sessionId);
+    if (!session) {
+      throw new Error('Failed to retrieve created session');
+    }
 
     return session;
   }
@@ -152,22 +147,38 @@ class SessionStore {
         ? venues.find(v => v.id === sessionData.matched_venue_id) || null
         : null,
       createdAt: sessionData.created_at,
+      hostId: sessionData.host_id,
+      isLocked: sessionData.is_locked || false,
+      maxParticipants: sessionData.max_participants || 10,
     };
 
     return session;
   }
 
   async joinSession(sessionId: string, participantName: string): Promise<Participant | null> {
-    // Check if session exists
+    // Check if session exists and is not locked
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
-      .select('id')
+      .select('id, is_locked, max_participants')
       .eq('id', sessionId)
       .single();
 
     if (sessionError || !sessionData) {
-      console.error('Session not found:', sessionError);
       return null;
+    }
+
+    if (sessionData.is_locked) {
+      throw new Error('This session is locked and not accepting new participants');
+    }
+
+    // Check participant count
+    const { count } = await supabase
+      .from('participants')
+      .select('*', { count: 'exact', head: true })
+      .eq('session_id', sessionId);
+
+    if (count && sessionData.max_participants && count >= sessionData.max_participants) {
+      throw new Error('This session is full');
     }
 
     const participantId = Math.random().toString(36).substring(2);
@@ -179,6 +190,9 @@ class SessionStore {
         session_id: sessionId,
         name: participantName,
         is_ready: false,
+        is_host: false,
+        joined_at: new Date().toISOString(),
+        last_active: new Date().toISOString(),
       });
 
     if (participantError) {
@@ -186,20 +200,9 @@ class SessionStore {
       return null;
     }
 
-    const participant: Participant = {
-      id: participantId,
-      name: participantName,
-      location: null,
-      isReady: false,
-    };
-
-    // Notify listeners
     const session = await this.getSession(sessionId);
-    if (session) {
-      this.notifyListeners(sessionId, session);
-    }
-
-    return participant;
+    const participant = session?.participants.find(p => p.id === participantId);
+    return participant || null;
   }
 
   async updateParticipantLocation(
@@ -354,6 +357,46 @@ class SessionStore {
     if (updatedSession) {
       this.notifyListeners(sessionId, updatedSession);
     }
+  }
+
+  async updateParticipantActivity(participantId: string): Promise<void> {
+    await supabase
+      .from('participants')
+      .update({ last_active: new Date().toISOString() })
+      .eq('id', participantId);
+  }
+
+  async lockSession(sessionId: string, locked: boolean): Promise<void> {
+    await supabase
+      .from('sessions')
+      .update({ is_locked: locked })
+      .eq('id', sessionId);
+
+    const session = await this.getSession(sessionId);
+    if (session) {
+      this.notifyListeners(sessionId, session);
+    }
+  }
+
+  async removeParticipant(sessionId: string, participantId: string): Promise<void> {
+    await supabase
+      .from('participants')
+      .delete()
+      .eq('id', participantId)
+      .eq('session_id', sessionId);
+
+    const session = await this.getSession(sessionId);
+    if (session) {
+      this.notifyListeners(sessionId, session);
+    }
+  }
+
+  async endSession(sessionId: string): Promise<void> {
+    // Delete all related data
+    await supabase.from('votes').delete().eq('session_id', sessionId);
+    await supabase.from('venues').delete().eq('session_id', sessionId);
+    await supabase.from('participants').delete().eq('session_id', sessionId);
+    await supabase.from('sessions').delete().eq('id', sessionId);
   }
 
   subscribe(sessionId: string, callback: (session: Session) => void): () => void {

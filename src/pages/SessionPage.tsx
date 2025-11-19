@@ -9,6 +9,7 @@ import MapView from '@/components/MapView';
 import SwipeDeck from '@/components/SwipeDeck';
 import MatchScreen from '@/components/MatchScreen';
 import VenueFilters, { VenueFilterOptions } from '@/components/VenueFilters';
+import ParticipantSidebar from '@/components/ParticipantSidebar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -118,23 +119,39 @@ export default function SessionPage() {
     setLocationSet(true);
   };
 
+  const handleReady = async () => {
+    if (!sessionId || !participantId) return;
+    await sessionStore.markParticipantReady(sessionId, participantId);
+  };
+
+  const handleLeaveSession = () => {
+    navigate('/');
+  };
+
   const handleVote = async (venueId: string, approved: boolean) => {
     if (!sessionId || !participantId) return;
     await sessionStore.recordVote(sessionId, participantId, venueId, approved ? 'like' : 'pass');
   };
 
-  const handleCopyLink = () => {
-    const link = window.location.origin + `/session/${sessionId}`;
-    navigator.clipboard.writeText(link);
+  const handleToggleMidpointMode = async () => {
+    if (!sessionId || !session) return;
+    const newMode = session.midpointMode === 'dynamic' ? 'locked' : 'dynamic';
+    await sessionStore.updateMidpointMode(sessionId, newMode);
     toast({
-      title: 'Link copied!',
-      description: 'Share this link with your friends to join the session',
+      title: newMode === 'locked' ? 'Midpoint locked' : 'Midpoint unlocked',
+      description: newMode === 'locked' 
+        ? 'The midpoint is now fixed and won\'t update with location changes'
+        : 'The midpoint will now update as participants move',
     });
   };
 
-  const toggleMidpointMode = async () => {
-    if (!sessionId || !session) return;
-    await sessionStore.toggleMidpointMode(sessionId);
+  const handleCopySessionLink = () => {
+    const link = `${window.location.origin}/session/${sessionId}`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: 'Link copied!',
+      description: 'Share this link with your friends',
+    });
   };
 
   if (!session) {
@@ -155,7 +172,8 @@ export default function SessionPage() {
       <WaitingRoom
         session={session}
         currentParticipantId={participantId!}
-        onReady={() => setLocationSet(false)}
+        onReady={handleReady}
+        onLeave={handleLeaveSession}
       />
     );
   }
@@ -168,7 +186,7 @@ export default function SessionPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/')}
+            onClick={handleLeaveSession}
             className="gap-2"
           >
             <Home className="w-4 h-4" />
@@ -180,26 +198,30 @@ export default function SessionPage() {
             </div>
             <div>
               <div className="font-semibold text-sm">Session {sessionId}</div>
-              <div className="text-xs text-gray-500">The Middle</div>
+              <div className="text-xs text-gray-500">{session.participants.length} participants</div>
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="gap-1">
+            <Users className="w-3 h-3" />
+            {session.participants.length}
+          </Badge>
+          {session.isLocked && (
+            <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-300">
+              <Lock className="w-3 h-3 mr-1" />
+              Locked
+            </Badge>
+          )}
           <Button
             variant="outline"
             size="sm"
-            onClick={handleCopyLink}
+            onClick={handleCopySessionLink}
             className="gap-2"
           >
             <Copy className="w-4 h-4" />
-            Share Link
+            Share
           </Button>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
-            <Users className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-medium">{session.participants.length}</span>
-          </div>
         </div>
       </header>
 
@@ -217,7 +239,7 @@ export default function SessionPage() {
           {/* Midpoint Mode Toggle */}
           <div className="absolute top-4 left-4 z-10">
             <Button
-              onClick={toggleMidpointMode}
+              onClick={handleToggleMidpointMode}
               variant="secondary"
               size="sm"
               className="gap-2 bg-white shadow-lg"
@@ -284,6 +306,12 @@ export default function SessionPage() {
             )}
           </div>
         </div>
+
+        {/* Participant Sidebar */}
+        <ParticipantSidebar
+          session={session}
+          currentParticipantId={participantId!}
+        />
       </div>
 
       {/* Match Screen */}

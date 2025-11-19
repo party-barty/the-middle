@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,16 @@ export default function HomePage() {
   const [name, setName] = useState('');
   const [sessionCode, setSessionCode] = useState('');
   const [showJoin, setShowJoin] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleCreateSession = async () => {
     if (!name.trim()) return;
@@ -34,52 +44,75 @@ export default function HomePage() {
       } else {
         alert('Session not found. Please check the session code and try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to join session:', error);
-      alert('Failed to join session. Please try again.');
+      alert(error.message || 'Failed to join session. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-lime-50 via-amber-50 to-teal-50">
-      {/* Isomorphic Background Pattern */}
-      <div className="fixed inset-0 opacity-[0.03] pointer-events-none">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}></div>
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Global Parallax Background Layer */}
+      <div className="fixed inset-0 pointer-events-none">
+        {/* Animated Gradient Orbs */}
+        <div 
+          className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"
+          style={{ transform: `translateY(${scrollY * 0.3}px)` }}
+        ></div>
+        <div 
+          className="absolute top-40 right-10 w-72 h-72 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" 
+          style={{ animationDelay: '1s', transform: `translateY(${scrollY * 0.5}px)` }}
+        ></div>
+        <div 
+          className="absolute top-[600px] left-1/4 w-72 h-72 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" 
+          style={{ animationDelay: '2s', transform: `translateY(${scrollY * 0.2}px)` }}
+        ></div>
+        <div 
+          className="absolute top-[1000px] right-1/4 w-72 h-72 bg-gradient-to-br from-rose-400 to-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" 
+          style={{ animationDelay: '1.5s', transform: `translateY(${scrollY * 0.4}px)` }}
+        ></div>
+        <div 
+          className="absolute top-[1400px] left-1/3 w-72 h-72 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" 
+          style={{ animationDelay: '0.5s', transform: `translateY(${scrollY * 0.35}px)` }}
+        ></div>
       </div>
 
-      {/* Hero Section */}
-      <section className="relative min-h-[600px] flex items-center justify-center overflow-hidden">
-        {/* Animated Gradient Orbs */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute -bottom-20 left-1/2 w-72 h-72 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '2s' }}></div>
-        
-        {/* Ad Unit - Desktop Leaderboard (Above Fold) */}
-        <div className="hidden md:block absolute top-4 left-1/2 -translate-x-1/2 w-[728px] h-[90px] bg-white/60 backdrop-blur-md border border-lime-200 rounded-2xl flex items-center justify-center text-lime-600 text-sm z-10 shadow-lg">
-          Ad Space 728x90
+      {/* Header */}
+      <header className="relative z-20 bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-lime-500 via-amber-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-xl">
+                <MapPin className="w-7 h-7 text-white" />
+              </div>
+              <span className="text-2xl font-bold">The Middle</span>
+            </div>
+            
+            <div className="flex gap-8 text-sm">
+              <a href="#" className="hover:text-lime-300 transition-colors font-medium">Privacy</a>
+              <a href="#" className="hover:text-lime-300 transition-colors font-medium">Terms</a>
+            </div>
+          </div>
         </div>
+      </header>
 
-        {/* Ad Unit - Mobile Half Banner (Above Fold) */}
-        <div className="md:hidden absolute top-4 left-1/2 -translate-x-1/2 w-[234px] h-[60px] bg-white/60 backdrop-blur-md border border-lime-200 rounded-2xl flex items-center justify-center text-lime-600 text-xs z-10 shadow-lg">
-          Ad 234x60
-        </div>
-        
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-24 md:pt-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-lime-500/10 to-teal-500/10 border border-lime-300/30 rounded-full mb-6 backdrop-blur-sm">
+      {/* Hero Section */}
+      <section className="relative min-h-[600px] flex items-center justify-center">
+        <div 
+          className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-24 md:pt-16"
+          style={{ transform: `translateY(${scrollY * 0.1}px)` }}
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-lime-500/10 to-teal-500/10 border border-lime-500/20 rounded-full mb-6">
             <Sparkles className="w-4 h-4 text-lime-600" />
-            <span className="text-sm font-semibold text-lime-700">Meet smarter, not harder</span>
+            <span className="text-sm font-medium text-lime-700">Find the perfect middle ground</span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-lime-600 via-amber-600 to-teal-600 bg-clip-text text-transparent">
-            Meet Me in The Middle
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-lime-600 via-teal-600 to-amber-600 bg-clip-text text-transparent">
+            Meet in The Middle
           </h1>
-          <p className="text-xl md:text-2xl text-gray-800 mb-4 font-semibold">
-            Find the perfect place to meet — instantly.
-          </p>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            The Middle calculates the geographic midpoint between friends and recommends the best nearby spots everyone will love.
+          
+          <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-2xl mx-auto">
+            Stop the endless "where should we meet?" texts. Find the perfect spot that's fair for everyone.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -108,8 +141,12 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 px-4 bg-white/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto">
+      <section className="relative py-20 px-4">
+        <div 
+          className="absolute inset-0 bg-white/70 backdrop-blur-sm"
+          style={{ transform: `translateY(${(scrollY - 600) * 0.08}px)` }}
+        ></div>
+        <div className="max-w-6xl mx-auto relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 bg-gradient-to-r from-lime-600 to-teal-600 bg-clip-text text-transparent">
             How The Middle Makes Meetups Easy
           </h2>
@@ -168,14 +205,20 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-lime-100/50 via-amber-100/50 to-teal-100/50"></div>
-        <div className="max-w-6xl mx-auto relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 bg-gradient-to-r from-lime-600 to-teal-600 bg-clip-text text-transparent">
-            Designed for Easier Meetups
-          </h2>
-          <p className="text-center text-gray-600 mb-16 text-lg">Everything you need in one beautiful interface</p>
-          
+      <section className="relative py-20 px-4">
+        <div 
+          className="max-w-6xl mx-auto relative z-10"
+          style={{ transform: `translateY(${(scrollY - 1000) * 0.05}px)` }}
+        >
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-lime-600 to-teal-600 bg-clip-text text-transparent">
+              How It Works
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Three simple steps to find your perfect meetup spot
+            </p>
+          </div>
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card className="border-none shadow-xl bg-white/80 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:scale-105 group overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity"></div>
@@ -247,12 +290,21 @@ export default function HomePage() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-20 px-4 bg-white/50 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-lime-600 via-amber-600 to-teal-600 bg-clip-text text-transparent">
-            Why People Love The Middle
+      <section className="relative py-20 px-4">
+        <div 
+          className="absolute inset-0 bg-white/70 backdrop-blur-sm"
+          style={{ transform: `translateY(${(scrollY - 1600) * 0.08}px)` }}
+        ></div>
+        <div 
+          className="max-w-4xl mx-auto text-center relative z-10"
+          style={{ transform: `translateY(${(scrollY - 1600) * 0.05}px)` }}
+        >
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-lime-600 to-teal-600 bg-clip-text text-transparent">
+            Why Choose The Middle?
           </h2>
-          <p className="text-gray-600 mb-12 text-lg">Real benefits for real people</p>
+          <p className="text-xl text-gray-600 mb-12">
+            The smartest way to plan group meetups
+          </p>
           
           <div className="space-y-6 text-left max-w-2xl mx-auto">
             <div className="flex items-start gap-4 p-4 rounded-2xl bg-gradient-to-r from-lime-50 to-emerald-50 border border-lime-200 hover:shadow-lg transition-shadow">
@@ -300,13 +352,14 @@ export default function HomePage() {
       </section>
 
       {/* Social Proof Section */}
-      <section className="py-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-lime-100 via-amber-100 to-teal-100"></div>
-        <div className="absolute top-10 left-10 w-64 h-64 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-        <div className="absolute bottom-10 right-10 w-64 h-64 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+      <section className="relative py-20 px-4">
+        <div 
+          className="absolute inset-0 bg-white/80 backdrop-blur-sm"
+          style={{ transform: `translateY(${(scrollY - 2200) * 0.08}px)` }}
+        ></div>
         
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-2xl p-12 border border-lime-200">
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl p-12 border border-lime-200/50">
             <div className="flex justify-center mb-6">
               <div className="flex gap-1">
                 {[...Array(5)].map((_, i) => (
@@ -325,15 +378,23 @@ export default function HomePage() {
       </section>
 
       {/* Ad Unit - Desktop Leaderboard (Below Fold) */}
-      <div className="hidden md:flex justify-center py-8 bg-white/50 backdrop-blur-sm">
-        <div className="w-[728px] h-[90px] bg-white/60 backdrop-blur-md border border-lime-200 rounded-2xl flex items-center justify-center text-lime-600 text-sm shadow-lg">
+      <div className="relative flex justify-center py-8">
+        <div 
+          className="absolute inset-0 bg-white/60 backdrop-blur-sm"
+          style={{ transform: `translateY(${(scrollY - 2600) * 0.08}px)` }}
+        ></div>
+        <div className="relative z-10 w-[728px] h-[90px] bg-white/80 backdrop-blur-md border border-lime-200/50 rounded-2xl flex items-center justify-center text-lime-600 text-sm shadow-lg hidden md:flex">
           Ad Space 728x90
         </div>
       </div>
 
       {/* Ad Unit - Mobile MREC (Below Fold) */}
-      <div className="md:hidden flex justify-center py-8 bg-white/50 backdrop-blur-sm">
-        <div className="w-[300px] h-[250px] bg-white/60 backdrop-blur-md border border-lime-200 rounded-2xl flex items-center justify-center text-lime-600 text-sm shadow-lg">
+      <div className="relative flex justify-center py-8 md:hidden">
+        <div 
+          className="absolute inset-0 bg-white/60 backdrop-blur-sm"
+          style={{ transform: `translateY(${(scrollY - 2600) * 0.08}px)` }}
+        ></div>
+        <div className="relative z-10 w-[300px] h-[250px] bg-white/80 backdrop-blur-md border border-lime-200/50 rounded-2xl flex items-center justify-center text-lime-600 text-sm shadow-lg">
           Ad Space 300x250
         </div>
       </div>

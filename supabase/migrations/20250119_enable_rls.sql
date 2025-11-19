@@ -3,6 +3,11 @@ ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE venues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow all operations on sessions" ON sessions;
+DROP POLICY IF EXISTS "Allow all operations on participants" ON participants;
+DROP POLICY IF EXISTS "Allow all operations on venues" ON venues;
+DROP POLICY IF EXISTS "Allow all operations on votes" ON votes;
+
 CREATE POLICY "Allow all operations on sessions" ON sessions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations on participants" ON participants FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations on venues" ON venues FOR ALL USING (true) WITH CHECK (true);
