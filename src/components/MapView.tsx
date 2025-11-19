@@ -22,12 +22,14 @@ export default function MapView({
   venues, 
   onVenueSelect,
   selectedVenue,
-  onCloseVenue 
+  onCloseVenue,
+  className = ''
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hoveredVenue, setHoveredVenue] = useState<Venue | null>(null);
 
   useEffect(() => {
     const initMap = async () => {
