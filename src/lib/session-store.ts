@@ -4,6 +4,34 @@ import { Session, Participant, Location, Venue, Vote } from '@/types/session';
 class SessionStore {
   private sessions: Map<string, Session> = new Map();
   private listeners: Map<string, Set<(session: Session) => void>> = new Map();
+  private readonly STORAGE_KEY = 'the-middle-sessions';
+
+  constructor() {
+    this.loadFromStorage();
+  }
+
+  private loadFromStorage(): void {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        const sessionsArray = JSON.parse(stored) as Session[];
+        sessionsArray.forEach(session => {
+          this.sessions.set(session.id, session);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load sessions from storage:', error);
+    }
+  }
+
+  private saveToStorage(): void {
+    try {
+      const sessionsArray = Array.from(this.sessions.values());
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sessionsArray));
+    } catch (error) {
+      console.error('Failed to save sessions to storage:', error);
+    }
+  }
 
   generateSessionId(): string {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -30,6 +58,7 @@ class SessionStore {
     };
 
     this.sessions.set(sessionId, session);
+    this.saveToStorage();
     return session;
   }
 
@@ -49,6 +78,7 @@ class SessionStore {
     };
 
     session.participants.push(participant);
+    this.saveToStorage();
     this.notifyListeners(sessionId, session);
     return participant;
   }
@@ -71,6 +101,7 @@ class SessionStore {
         this.calculateMidpoint(sessionId);
       }
 
+      this.saveToStorage();
       this.notifyListeners(sessionId, session);
     }
   }
@@ -94,6 +125,7 @@ class SessionStore {
       type: 'manual',
     };
 
+    this.saveToStorage();
     this.notifyListeners(sessionId, session);
   }
 
@@ -105,6 +137,7 @@ class SessionStore {
     if (mode === 'locked') {
       this.calculateMidpoint(sessionId);
     }
+    this.saveToStorage();
     this.notifyListeners(sessionId, session);
   }
 
@@ -121,6 +154,7 @@ class SessionStore {
 
     // Check for match
     this.checkForMatch(sessionId);
+    this.saveToStorage();
     this.notifyListeners(sessionId, session);
   }
 
@@ -138,6 +172,7 @@ class SessionStore {
 
       if (allApproved && participantIds.length > 0) {
         session.matchedVenue = venue;
+        this.saveToStorage();
         this.notifyListeners(sessionId, session);
         return;
       }
@@ -149,6 +184,7 @@ class SessionStore {
     if (!session) return;
 
     session.venues = venues;
+    this.saveToStorage();
     this.notifyListeners(sessionId, session);
   }
 

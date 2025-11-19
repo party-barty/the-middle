@@ -2,6 +2,7 @@ export interface Location {
   lat: number;
   lng: number;
   type: 'live' | 'manual';
+  address?: string;
 }
 
 export interface Participant {

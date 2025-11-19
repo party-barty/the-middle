@@ -4,6 +4,7 @@ import { sessionStore } from '@/lib/session-store';
 import { searchNearbyVenues } from '@/lib/maps';
 import { Session } from '@/types/session';
 import LocationSetup from '@/components/LocationSetup';
+import WaitingRoom from '@/components/WaitingRoom';
 import MapView from '@/components/MapView';
 import SwipeDeck from '@/components/SwipeDeck';
 import MatchScreen from '@/components/MatchScreen';
@@ -97,11 +98,22 @@ export default function SessionPage() {
 
   const currentParticipant = session.participants.find((p) => p.id === participantId);
 
+  // Show location setup if participant hasn't set location
   if (!currentParticipant?.isReady && !locationSet) {
-    return <LocationSetup onLocationSet={handleLocationSet} />;
+    return <LocationSetup onLocationSet={handleLocationSet} currentLocation={currentParticipant?.location} />;
   }
 
+  // Show waiting room if not all participants are ready
   const allReady = session.participants.every((p) => p.isReady);
+  if (!allReady) {
+    return (
+      <WaitingRoom
+        session={session}
+        currentParticipantId={participantId!}
+        onReady={() => setLocationSet(false)}
+      />
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -118,7 +130,7 @@ export default function SessionPage() {
             Home
           </Button>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-rose-500 to-orange-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-lime-500 to-teal-500 rounded-lg flex items-center justify-center">
               <MapPin className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -146,95 +158,63 @@ export default function SessionPage() {
         </div>
       </header>
 
-      {/* Waiting Room */}
-      {!allReady && (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md p-6 border-none shadow-xl">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold">Waiting for participants</h2>
-              <p className="text-gray-600">
-                Share the session link so everyone can join and set their location
-              </p>
-
-              <div className="space-y-2 pt-4">
-                {session.participants.map((participant) => (
-                  <div
-                    key={participant.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <span className="font-medium">{participant.name}</span>
-                    <Badge variant={participant.isReady ? 'default' : 'secondary'}>
-                      {participant.isReady ? '✓ Ready' : 'Waiting...'}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
       {/* Main View */}
-      {allReady && (
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* Map Section */}
-          <div className="flex-1 relative bg-white border-r border-gray-200">
-            <div className="absolute inset-0 p-4">
-              <MapView
-                participants={session.participants}
-                midpoint={session.midpoint}
-              />
-            </div>
-
-            {/* Midpoint Mode Toggle */}
-            <div className="absolute top-4 left-4 z-10">
-              <Button
-                onClick={toggleMidpointMode}
-                variant="secondary"
-                size="sm"
-                className="gap-2 bg-white shadow-lg"
-              >
-                {session.midpointMode === 'dynamic' ? (
-                  <>
-                    <Unlock className="w-4 h-4" />
-                    Dynamic
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-4 h-4" />
-                    Locked
-                  </>
-                )}
-              </Button>
-            </div>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Map Section */}
+        <div className="flex-1 relative bg-white border-r border-gray-200">
+          <div className="absolute inset-0 p-4">
+            <MapView
+              participants={session.participants}
+              midpoint={session.midpoint}
+              venues={session.venues}
+            />
           </div>
 
-          {/* Swipe Section */}
-          <div className="w-full md:w-[480px] bg-gray-50 flex flex-col">
-            <div className="p-4 bg-white border-b border-gray-200">
-              <h2 className="text-xl font-bold">Find Your Spot</h2>
-              <p className="text-sm text-gray-600">Swipe right to like, left to pass</p>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              {session.venues.length > 0 ? (
-                <SwipeDeck venues={session.venues} onVote={handleVote} />
+          {/* Midpoint Mode Toggle */}
+          <div className="absolute top-4 left-4 z-10">
+            <Button
+              onClick={toggleMidpointMode}
+              variant="secondary"
+              size="sm"
+              className="gap-2 bg-white shadow-lg"
+            >
+              {session.midpointMode === 'dynamic' ? (
+                <>
+                  <Unlock className="w-4 h-4" />
+                  Dynamic
+                </>
               ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center p-8">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                      <MapPin className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <p className="text-gray-600">Loading venues...</p>
-                  </div>
-                </div>
+                <>
+                  <Lock className="w-4 h-4" />
+                  Locked
+                </>
               )}
-            </div>
+            </Button>
           </div>
         </div>
-      )}
+
+        {/* Swipe Section */}
+        <div className="w-full md:w-[480px] bg-gray-50 flex flex-col">
+          <div className="p-4 bg-white border-b border-gray-200">
+            <h2 className="text-xl font-bold">Find Your Spot</h2>
+            <p className="text-sm text-gray-600">Swipe right to like, left to pass</p>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            {session.venues.length > 0 ? (
+              <SwipeDeck venues={session.venues} onVote={handleVote} />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-8">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <MapPin className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600">Loading venues...</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Match Screen */}
       {session.matchedVenue && (

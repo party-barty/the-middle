@@ -98,3 +98,18 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; ln
     });
   });
 }
+
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  const google = await initGoogleMaps();
+  const geocoder = new google.maps.Geocoder();
+
+  return new Promise((resolve) => {
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        resolve(results[0].formatted_address);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
