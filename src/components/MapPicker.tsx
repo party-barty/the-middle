@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin } from 'lucide-react';
-import { reverseGeocode } from '@/lib/maps';
+import { reverseGeocode, initGoogleMaps } from '@/lib/maps';
 
 interface MapPickerProps {
   onLocationSelect: (lat: number, lng: number, address?: string) => void;
@@ -22,55 +22,61 @@ export default function MapPicker({ onLocationSelect, onCancel, initialLat, init
   useEffect(() => {
     if (!mapRef.current || map) return;
 
-    const googleMap = new google.maps.Map(mapRef.current, {
-      center: { lat: selectedLat, lng: selectedLng },
-      zoom: 12,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
+    const initMap = async () => {
+      await initGoogleMaps();
 
-    const googleMarker = new google.maps.Marker({
-      position: { lat: selectedLat, lng: selectedLng },
-      map: googleMap,
-      draggable: true,
-    });
+      const googleMap = new google.maps.Map(mapRef.current!, {
+        center: { lat: selectedLat, lng: selectedLng },
+        zoom: 12,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+      });
 
-    googleMap.addListener('click', async (e: google.maps.MapMouseEvent) => {
-      if (e.latLng) {
-        const lat = e.latLng.lat();
-        const lng = e.latLng.lng();
-        googleMarker.setPosition(e.latLng);
-        setSelectedLat(lat);
-        setSelectedLng(lng);
-        
-        // Reverse geocode to get address
-        const addr = await reverseGeocode(lat, lng);
+      const googleMarker = new google.maps.Marker({
+        position: { lat: selectedLat, lng: selectedLng },
+        map: googleMap,
+        draggable: true,
+      });
+
+      googleMap.addListener('click', async (e: google.maps.MapMouseEvent) => {
+        if (e.latLng) {
+          const lat = e.latLng.lat();
+          const lng = e.latLng.lng();
+          googleMarker.setPosition(e.latLng);
+          setSelectedLat(lat);
+          setSelectedLng(lng);
+          
+          // Reverse geocode to get address
+          const addr = await reverseGeocode(lat, lng);
+          setAddress(addr || '');
+        }
+      });
+
+      googleMarker.addListener('dragend', async () => {
+        const position = googleMarker.getPosition();
+        if (position) {
+          const lat = position.lat();
+          const lng = position.lng();
+          setSelectedLat(lat);
+          setSelectedLng(lng);
+          
+          // Reverse geocode to get address
+          const addr = await reverseGeocode(lat, lng);
+          setAddress(addr || '');
+        }
+      });
+
+      setMap(googleMap);
+      setMarker(googleMarker);
+
+      // Initial reverse geocode
+      reverseGeocode(selectedLat, selectedLng).then(addr => {
         setAddress(addr || '');
-      }
-    });
+      });
+    };
 
-    googleMarker.addListener('dragend', async () => {
-      const position = googleMarker.getPosition();
-      if (position) {
-        const lat = position.lat();
-        const lng = position.lng();
-        setSelectedLat(lat);
-        setSelectedLng(lng);
-        
-        // Reverse geocode to get address
-        const addr = await reverseGeocode(lat, lng);
-        setAddress(addr || '');
-      }
-    });
-
-    setMap(googleMap);
-    setMarker(googleMarker);
-
-    // Initial reverse geocode
-    reverseGeocode(selectedLat, selectedLng).then(addr => {
-      setAddress(addr || '');
-    });
+    initMap();
   }, []);
 
   const handleConfirm = () => {

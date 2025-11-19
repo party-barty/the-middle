@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Participant, Venue } from '@/types/session';
-import { Loader } from '@googlemaps/js-api-loader';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,12 +58,12 @@ export default function MapView({
     const initMap = async () => {
       if (!mapRef.current) return;
 
-      const loader = new Loader({
+      setOptions({
         apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
         version: 'weekly',
       });
 
-      await loader.load();
+      await importLibrary('maps');
 
       // Default to Hermosa Beach if no midpoint or participants yet
       const defaultLocation = { lat: 33.8622, lng: -118.3998 }; // 1 Pier Ave, Hermosa Beach, CA 90254

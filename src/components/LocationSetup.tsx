@@ -22,15 +22,12 @@ export default function LocationSetup({ onLocationSet }: LocationSetupProps) {
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [showPredictions, setShowPredictions] = useState(false);
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesService = useRef<google.maps.places.PlacesService | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Initialize autocomplete service
   useEffect(() => {
     initGoogleMaps().then((google) => {
       autocompleteService.current = new google.maps.places.AutocompleteService();
-      const map = new google.maps.Map(document.createElement('div'));
-      placesService.current = new google.maps.places.PlacesService(map);
     });
   }, []);
 
@@ -159,50 +156,56 @@ export default function LocationSetup({ onLocationSet }: LocationSetupProps) {
     );
   };
 
-  const handlePredictionSelect = (prediction: google.maps.places.AutocompletePrediction) => {
-    if (!placesService.current) return;
-
+  const handlePredictionSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
     setLoading(true);
     setError('');
     setAddress(prediction.description);
     setShowPredictions(false);
 
-    placesService.current.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ['geometry', 'formatted_address'],
-      },
-      (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
-          const location = {
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng(),
-            type: 'manual' as const,
-            address: place.formatted_address,
-          };
-          setCurrentLocation(location);
-          onLocationSet(location);
-          setMode('manual');
-        } else {
-          setError('Unable to get location details. Please try again.');
-        }
+    try {
+      const google = await initGoogleMaps();
+      const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+      
+      const place = new Place({
+        id: prediction.place_id,
+      });
+
+      await place.fetchFields({
+        fields: ['location', 'formattedAddress'],
+      });
+
+      if (place.location) {
+        const location = {
+          lat: place.location.lat(),
+          lng: place.location.lng(),
+          type: 'manual' as const,
+          address: place.formattedAddress,
+        };
+        setCurrentLocation(location);
+        setLoading(false);
+      } else {
+        setError('Could not get location details');
         setLoading(false);
       }
-    );
+    } catch (err) {
+      setError('Failed to get place details');
+      setLoading(false);
+    }
   };
 
-  const handleManualLocation = () => {
-    if (!address.trim()) return;
-    
-    // If we have predictions, use the first one
-    if (predictions.length > 0) {
+  const handleManualLocation = async () => {
+    if (!address.trim()) {
+      setError('Please enter an address');
+      return;
+    }
+
+    // If there's an exact match in predictions, use it
+    if (predictions.length === 1) {
       handlePredictionSelect(predictions[0]);
       return;
     }
     
     // Otherwise, geocode the address directly
-    if (!placesService.current) return;
-    
     setLoading(true);
     setError('');
     
