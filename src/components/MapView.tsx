@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Participant, Venue } from '@/types/session';
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+import { initGoogleMaps } from '@/lib/maps';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,58 +12,29 @@ interface MapViewProps {
   venues?: Venue[];
   selectedVenue?: Venue | null;
   onVenueSelect?: (venue: Venue | null) => void;
+  onCloseVenue?: () => void;
   className?: string;
 }
 
 export default function MapView({ 
   participants, 
   midpoint, 
-  venues = [],
-  selectedVenue,
+  venues, 
   onVenueSelect,
-  className = ''
+  selectedVenue,
+  onCloseVenue 
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [hoveredVenue, setHoveredVenue] = useState<Venue | null>(null);
-
-  const getAvatarColor = (id: string) => {
-    const colors = [
-      '#f43f5e', // rose
-      '#f97316', // orange
-      '#f59e0b', // amber
-      '#84cc16', // lime
-      '#14b8a6', // teal
-      '#06b6d4', // cyan
-      '#3b82f6', // blue
-      '#a855f7', // purple
-      '#ec4899', // pink
-    ];
-    const index = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[index % colors.length];
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   useEffect(() => {
     const initMap = async () => {
       if (!mapRef.current) return;
 
-      setOptions({
-        apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-        version: 'weekly',
-      });
-
-      await importLibrary('maps');
+      // Use the centralized initGoogleMaps instead of calling setOptions again
+      await initGoogleMaps();
 
       // Default to Hermosa Beach if no midpoint or participants yet
       const defaultLocation = { lat: 33.8622, lng: -118.3998 }; // 1 Pier Ave, Hermosa Beach, CA 90254
@@ -87,19 +58,17 @@ export default function MapView({
         fullscreenControl: false,
       });
 
-      mapInstanceRef.current = map;
+      setMap(map);
     };
 
     initMap();
   }, []);
 
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
+    if (!map) return;
 
     // Clear existing markers
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
-
+    setMarkers([]);
     const bounds = new google.maps.LatLngBounds();
     let hasLocations = false;
 
@@ -126,7 +95,7 @@ export default function MapView({
 
       const marker = new google.maps.Marker({
         position,
-        map: mapInstanceRef.current,
+        map,
         icon: markerIcon,
         title: participant.name,
         zIndex: 100,
@@ -169,7 +138,7 @@ export default function MapView({
         }
       };
       
-      labelOverlay.setMap(mapInstanceRef.current);
+      labelOverlay.setMap(map);
 
       // Info window
       const infoWindow = new google.maps.InfoWindow({
@@ -184,10 +153,10 @@ export default function MapView({
       });
 
       marker.addListener('click', () => {
-        infoWindow.open(mapInstanceRef.current, marker);
+        infoWindow.open(map, marker);
       });
 
-      markersRef.current.push(marker);
+      setMarkers(prev => [...prev, marker]);
     });
 
     // Add midpoint marker
@@ -197,7 +166,7 @@ export default function MapView({
 
       const midpointMarker = new google.maps.Marker({
         position: midpoint,
-        map: mapInstanceRef.current,
+        map,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: 15,
@@ -222,10 +191,10 @@ export default function MapView({
       });
 
       midpointMarker.addListener('click', () => {
-        infoWindow.open(mapInstanceRef.current, midpointMarker);
+        infoWindow.open(map, midpointMarker);
       });
 
-      markersRef.current.push(midpointMarker);
+      setMarkers(prev => [...prev, midpointMarker]);
     }
 
     // Add venue markers
@@ -238,7 +207,7 @@ export default function MapView({
       
       const venueMarker = new google.maps.Marker({
         position,
-        map: mapInstanceRef.current,
+        map,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: isSelected ? 12 : 8,
@@ -268,7 +237,7 @@ export default function MapView({
       });
 
       venueMarker.addListener('click', () => {
-        infoWindow.open(mapInstanceRef.current, venueMarker);
+        infoWindow.open(map, venueMarker);
         onVenueSelect?.(venue);
       });
 
@@ -280,12 +249,12 @@ export default function MapView({
         setHoveredVenue(null);
       });
 
-      markersRef.current.push(venueMarker);
+      setMarkers(prev => [...prev, venueMarker]);
     });
 
     // Fit bounds if we have locations
     if (hasLocations) {
-      mapInstanceRef.current.fitBounds(bounds, {
+      map.fitBounds(bounds, {
         top: 50,
         right: 50,
         bottom: 50,
@@ -294,8 +263,8 @@ export default function MapView({
     } else {
       // If no locations yet, center on default Hermosa Beach location
       const defaultLocation = { lat: 33.8622, lng: -118.3998 };
-      mapInstanceRef.current.setCenter(defaultLocation);
-      mapInstanceRef.current.setZoom(13);
+      map.setCenter(defaultLocation);
+      map.setZoom(13);
     }
   }, [participants, midpoint, venues, selectedVenue]);
 
@@ -304,9 +273,9 @@ export default function MapView({
   };
 
   const centerOnMidpoint = () => {
-    if (midpoint && mapInstanceRef.current) {
-      mapInstanceRef.current.panTo(midpoint);
-      mapInstanceRef.current.setZoom(14);
+    if (midpoint && map) {
+      map.panTo(midpoint);
+      map.setZoom(14);
     }
   };
 

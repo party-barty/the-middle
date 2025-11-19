@@ -5,6 +5,7 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 let google: typeof globalThis.google | null = null;
 let loadingPromise: Promise<typeof globalThis.google> | null = null;
+let optionsSet = false;
 
 export async function initGoogleMaps(): Promise<typeof globalThis.google> {
   if (google) return google;
@@ -17,11 +18,14 @@ export async function initGoogleMaps(): Promise<typeof globalThis.google> {
     throw new Error('Google Maps API key is not configured');
   }
 
-  // Set options for the loader
-  setOptions({
-    apiKey: GOOGLE_MAPS_API_KEY,
-    version: 'weekly',
-  });
+  // Set options for the loader only once
+  if (!optionsSet) {
+    setOptions({
+      apiKey: GOOGLE_MAPS_API_KEY,
+      version: 'weekly',
+    });
+    optionsSet = true;
+  }
 
   loadingPromise = Promise.all([
     importLibrary('maps'),
