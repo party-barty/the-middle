@@ -18,46 +18,51 @@ class SessionStore {
     const sessionId = this.generateSessionId();
     const participantId = Math.random().toString(36).substring(2);
 
-    // Create session
-    const { error: sessionError } = await supabase
-      .from('sessions')
-      .insert({
-        id: sessionId,
-        midpoint_mode: 'dynamic',
-        host_id: participantId,
-        is_locked: false,
-        max_participants: 10,
-      });
+    try {
+      // Create session
+      const { error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          id: sessionId,
+          midpoint_mode: 'dynamic',
+          host_id: participantId,
+          is_locked: false,
+          max_participants: 10,
+        });
 
-    if (sessionError) {
-      console.error('Failed to create session:', sessionError);
-      throw new Error('Failed to create session');
+      if (sessionError) {
+        console.error('Failed to create session:', sessionError);
+        throw new Error(`Failed to create session: ${sessionError.message}`);
+      }
+
+      // Create participant (host)
+      const { error: participantError } = await supabase
+        .from('participants')
+        .insert({
+          id: participantId,
+          session_id: sessionId,
+          name: participantName,
+          is_ready: false,
+          is_host: true,
+          joined_at: new Date().toISOString(),
+          last_active: new Date().toISOString(),
+        });
+
+      if (participantError) {
+        console.error('Failed to create participant:', participantError);
+        throw new Error(`Failed to create participant: ${participantError.message}`);
+      }
+
+      const session = await this.getSession(sessionId);
+      if (!session) {
+        throw new Error('Failed to retrieve created session');
+      }
+
+      return session;
+    } catch (error) {
+      console.error('Error in createSession:', error);
+      throw error;
     }
-
-    // Create participant (host)
-    const { error: participantError } = await supabase
-      .from('participants')
-      .insert({
-        id: participantId,
-        session_id: sessionId,
-        name: participantName,
-        is_ready: false,
-        is_host: true,
-        joined_at: new Date().toISOString(),
-        last_active: new Date().toISOString(),
-      });
-
-    if (participantError) {
-      console.error('Failed to create participant:', participantError);
-      throw new Error('Failed to create participant');
-    }
-
-    const session = await this.getSession(sessionId);
-    if (!session) {
-      throw new Error('Failed to retrieve created session');
-    }
-
-    return session;
   }
 
   async getSession(sessionId: string): Promise<Session | null> {

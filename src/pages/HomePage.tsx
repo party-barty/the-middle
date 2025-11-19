@@ -59,7 +59,8 @@ export default function HomePage() {
       navigate(`/session/${session.id}?participantId=${participant.id}`);
     } catch (error) {
       console.error("Failed to create session:", error);
-      alert("Failed to create session. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to create session. Please try again.";
+      alert(errorMessage);
     }
   };
 
