@@ -17,12 +17,20 @@ export default function MapView({ participants, midpoint, onMapReady }: MapViewP
     let mounted = true;
 
     const initMap = async () => {
-      if (!mapRef.current) return;
+      if (!mapRef.current) {
+        console.log('MapView: mapRef.current is null');
+        return;
+      }
 
+      console.log('MapView: Initializing Google Maps...');
       const google = await initGoogleMaps();
       
-      if (!mounted) return;
+      if (!mounted) {
+        console.log('MapView: Component unmounted before map loaded');
+        return;
+      }
 
+      console.log('MapView: Creating map instance');
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: 40.7128, lng: -74.006 },
         zoom: 12,
@@ -41,6 +49,7 @@ export default function MapView({ participants, midpoint, onMapReady }: MapViewP
       });
 
       mapInstanceRef.current = map;
+      console.log('MapView: Map initialized successfully');
       if (onMapReady) onMapReady(map);
     };
 
@@ -162,6 +171,6 @@ export default function MapView({ participants, midpoint, onMapReady }: MapViewP
   }, [participants, midpoint]);
 
   return (
-    <div ref={mapRef} className="w-full h-full rounded-lg" />
+    <div ref={mapRef} className="w-full h-full rounded-lg bg-gray-100" style={{ minHeight: '400px' }} />
   );
 }

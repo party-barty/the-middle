@@ -1,54 +1,59 @@
 import { Session, Participant, Location, Venue, Vote } from '@/types/session';
+import { createClient } from '@supabase/supabase-js';
 
-// Simple in-memory store for MVP (no login required)
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
+// Simple store with Supabase backend
 class SessionStore {
-  private sessions: Map<string, Session> = new Map();
   private listeners: Map<string, Set<(session: Session) => void>> = new Map();
-  private readonly STORAGE_KEY = 'the-middle-sessions';
-
-  constructor() {
-    this.loadFromStorage();
-  }
-
-  private loadFromStorage(): void {
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (stored) {
-        const sessionsArray = JSON.parse(stored) as Session[];
-        sessionsArray.forEach(session => {
-          this.sessions.set(session.id, session);
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load sessions from storage:', error);
-    }
-  }
-
-  private saveToStorage(): void {
-    try {
-      const sessionsArray = Array.from(this.sessions.values());
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sessionsArray));
-    } catch (error) {
-      console.error('Failed to save sessions to storage:', error);
-    }
-  }
 
   generateSessionId(): string {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
-  createSession(participantName: string): Session {
+  async createSession(participantName: string): Promise<Session> {
     const sessionId = this.generateSessionId();
-    const participant: Participant = {
-      id: Math.random().toString(36).substring(2),
-      name: participantName,
-      location: null,
-      isReady: false,
-    };
+    const participantId = Math.random().toString(36).substring(2);
+
+    // Create session
+    const { error: sessionError } = await supabase
+      .from('sessions')
+      .insert({
+        id: sessionId,
+        midpoint_mode: 'dynamic',
+      });
+
+    if (sessionError) {
+      console.error('Failed to create session:', sessionError);
+      throw new Error('Failed to create session');
+    }
+
+    // Create participant
+    const { error: participantError } = await supabase
+      .from('participants')
+      .insert({
+        id: participantId,
+        session_id: sessionId,
+        name: participantName,
+        is_ready: false,
+      });
+
+    if (participantError) {
+      console.error('Failed to create participant:', participantError);
+      throw new Error('Failed to create participant');
+    }
 
     const session: Session = {
       id: sessionId,
-      participants: [participant],
+      participants: [{
+        id: participantId,
+        name: participantName,
+        location: null,
+        isReady: false,
+      }],
       midpoint: null,
       midpointMode: 'dynamic',
       venues: [],
@@ -57,135 +62,298 @@ class SessionStore {
       createdAt: new Date().toISOString(),
     };
 
-    this.sessions.set(sessionId, session);
-    this.saveToStorage();
     return session;
   }
 
-  getSession(sessionId: string): Session | null {
-    return this.sessions.get(sessionId) || null;
+  async getSession(sessionId: string): Promise<Session | null> {
+    // Get session
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !sessionData) {
+      console.error('Session not found:', sessionError);
+      return null;
+    }
+
+    // Get participants
+    const { data: participantsData, error: participantsError } = await supabase
+      .from('participants')
+      .select('*')
+      .eq('session_id', sessionId);
+
+    if (participantsError) {
+      console.error('Failed to fetch participants:', participantsError);
+      return null;
+    }
+
+    // Get venues
+    const { data: venuesData } = await supabase
+      .from('venues')
+      .select('*')
+      .eq('session_id', sessionId);
+
+    // Get votes
+    const { data: votesData } = await supabase
+      .from('votes')
+      .select('*')
+      .eq('session_id', sessionId);
+
+    const participants: Participant[] = participantsData.map(p => ({
+      id: p.id,
+      name: p.name,
+      location: p.location_lat && p.location_lng ? {
+        lat: p.location_lat,
+        lng: p.location_lng,
+        type: p.location_type as 'live' | 'manual',
+        address: p.location_address,
+      } : null,
+      isReady: p.is_ready,
+    }));
+
+    const venues: Venue[] = (venuesData || []).map(v => ({
+      id: v.id,
+      name: v.name,
+      address: v.address,
+      lat: v.lat,
+      lng: v.lng,
+      rating: v.rating,
+      priceLevel: v.price_level,
+      photoUrl: v.photo_url,
+      types: v.types,
+      distance: v.distance,
+    }));
+
+    const votes: Vote[] = (votesData || []).map(v => ({
+      participantId: v.participant_id,
+      venueId: v.venue_id,
+      vote: v.vote as 'like' | 'pass',
+    }));
+
+    // Calculate midpoint
+    const readyParticipants = participants.filter(p => p.location);
+    let midpoint = null;
+    if (readyParticipants.length > 0) {
+      const avgLat = readyParticipants.reduce((sum, p) => sum + p.location!.lat, 0) / readyParticipants.length;
+      const avgLng = readyParticipants.reduce((sum, p) => sum + p.location!.lng, 0) / readyParticipants.length;
+      midpoint = { lat: avgLat, lng: avgLng };
+    }
+
+    const session: Session = {
+      id: sessionData.id,
+      participants,
+      midpoint,
+      midpointMode: sessionData.midpoint_mode as 'dynamic' | 'locked',
+      venues,
+      votes,
+      matchedVenue: sessionData.matched_venue_id 
+        ? venues.find(v => v.id === sessionData.matched_venue_id) || null
+        : null,
+      createdAt: sessionData.created_at,
+    };
+
+    return session;
   }
 
-  joinSession(sessionId: string, participantName: string): Participant | null {
-    const session = this.sessions.get(sessionId);
-    if (!session) return null;
+  async joinSession(sessionId: string, participantName: string): Promise<Participant | null> {
+    // Check if session exists
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !sessionData) {
+      console.error('Session not found:', sessionError);
+      return null;
+    }
+
+    const participantId = Math.random().toString(36).substring(2);
+
+    const { error: participantError } = await supabase
+      .from('participants')
+      .insert({
+        id: participantId,
+        session_id: sessionId,
+        name: participantName,
+        is_ready: false,
+      });
+
+    if (participantError) {
+      console.error('Failed to join session:', participantError);
+      return null;
+    }
 
     const participant: Participant = {
-      id: Math.random().toString(36).substring(2),
+      id: participantId,
       name: participantName,
       location: null,
       isReady: false,
     };
 
-    session.participants.push(participant);
-    this.saveToStorage();
-    this.notifyListeners(sessionId, session);
+    // Notify listeners
+    const session = await this.getSession(sessionId);
+    if (session) {
+      this.notifyListeners(sessionId, session);
+    }
+
     return participant;
   }
 
-  updateParticipantLocation(
+  async updateParticipantLocation(
     sessionId: string,
     participantId: string,
     location: Location
-  ): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('participants')
+      .update({
+        location_lat: location.lat,
+        location_lng: location.lng,
+        location_type: location.type,
+        location_address: location.address,
+        is_ready: true,
+      })
+      .eq('id', participantId)
+      .eq('session_id', sessionId);
 
-    const participant = session.participants.find((p) => p.id === participantId);
-    if (participant) {
-      participant.location = location;
-      participant.isReady = true;
+    if (error) {
+      console.error('Failed to update participant location:', error);
+      return;
+    }
 
-      // Recalculate midpoint if dynamic mode
-      if (session.midpointMode === 'dynamic') {
-        this.calculateMidpoint(sessionId);
-      }
-
-      this.saveToStorage();
+    const session = await this.getSession(sessionId);
+    if (session) {
       this.notifyListeners(sessionId, session);
     }
   }
 
-  calculateMidpoint(sessionId: string): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
+  async addVenues(sessionId: string, venues: Venue[]): Promise<void> {
+    const venueRecords = venues.map(v => ({
+      id: v.id,
+      session_id: sessionId,
+      name: v.name,
+      address: v.address,
+      lat: v.lat,
+      lng: v.lng,
+      rating: v.rating,
+      price_level: v.priceLevel,
+      photo_url: v.photoUrl,
+      types: v.types,
+      distance: v.distance,
+    }));
 
-    const locations = session.participants
-      .filter((p) => p.location)
-      .map((p) => p.location!);
+    const { error } = await supabase
+      .from('venues')
+      .insert(venueRecords);
 
-    if (locations.length === 0) return;
-
-    const avgLat = locations.reduce((sum, loc) => sum + loc.lat, 0) / locations.length;
-    const avgLng = locations.reduce((sum, loc) => sum + loc.lng, 0) / locations.length;
-
-    session.midpoint = {
-      lat: avgLat,
-      lng: avgLng,
-      type: 'manual',
-    };
-
-    this.saveToStorage();
-    this.notifyListeners(sessionId, session);
-  }
-
-  setMidpointMode(sessionId: string, mode: 'dynamic' | 'locked'): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    session.midpointMode = mode;
-    if (mode === 'locked') {
-      this.calculateMidpoint(sessionId);
+    if (error) {
+      console.error('Failed to add venues:', error);
+      return;
     }
-    this.saveToStorage();
-    this.notifyListeners(sessionId, session);
+
+    const session = await this.getSession(sessionId);
+    if (session) {
+      this.notifyListeners(sessionId, session);
+    }
   }
 
-  addVote(sessionId: string, participantId: string, venueId: string, approved: boolean): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
+  async recordVote(
+    sessionId: string,
+    participantId: string,
+    venueId: string,
+    vote: 'like' | 'pass'
+  ): Promise<void> {
+    const voteId = Math.random().toString(36).substring(2);
 
-    // Remove existing vote for this participant and venue
-    session.votes = session.votes.filter(
-      (v) => !(v.participantId === participantId && v.venueId === venueId)
-    );
+    const { error } = await supabase
+      .from('votes')
+      .upsert({
+        id: voteId,
+        session_id: sessionId,
+        participant_id: participantId,
+        venue_id: venueId,
+        vote,
+      });
 
-    session.votes.push({ participantId, venueId, approved });
+    if (error) {
+      console.error('Failed to record vote:', error);
+      return;
+    }
 
-    // Check for match
-    this.checkForMatch(sessionId);
-    this.saveToStorage();
-    this.notifyListeners(sessionId, session);
+    // Check for match after recording vote
+    await this.checkForMatch(sessionId);
+
+    const session = await this.getSession(sessionId);
+    if (session) {
+      this.notifyListeners(sessionId, session);
+    }
   }
 
-  checkForMatch(sessionId: string): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
+  async checkForMatch(sessionId: string): Promise<Venue | null> {
+    const session = await this.getSession(sessionId);
+    if (!session) return null;
 
-    const participantIds = session.participants.map((p) => p.id);
+    // Get all participants
+    const totalParticipants = session.participants.length;
+    if (totalParticipants === 0) return null;
+
+    // Group votes by venue
+    const venueVotes = new Map<string, { likes: Set<string>; passes: Set<string> }>();
     
-    for (const venue of session.venues) {
-      const venueVotes = session.votes.filter((v) => v.venueId === venue.id);
-      const allApproved = participantIds.every((pid) =>
-        venueVotes.some((v) => v.participantId === pid && v.approved)
-      );
+    session.votes.forEach(vote => {
+      if (!venueVotes.has(vote.venueId)) {
+        venueVotes.set(vote.venueId, { likes: new Set(), passes: new Set() });
+      }
+      const voteGroup = venueVotes.get(vote.venueId)!;
+      if (vote.vote === 'like') {
+        voteGroup.likes.add(vote.participantId);
+      } else {
+        voteGroup.passes.add(vote.participantId);
+      }
+    });
 
-      if (allApproved && participantIds.length > 0) {
-        session.matchedVenue = venue;
-        this.saveToStorage();
-        this.notifyListeners(sessionId, session);
-        return;
+    // Find venue where all participants liked it
+    for (const [venueId, { likes }] of venueVotes.entries()) {
+      if (likes.size === totalParticipants) {
+        const matchedVenue = session.venues.find(v => v.id === venueId);
+        if (matchedVenue) {
+          // Update session with matched venue
+          await supabase
+            .from('sessions')
+            .update({ matched_venue_id: venueId })
+            .eq('id', sessionId);
+          
+          return matchedVenue;
+        }
       }
     }
+
+    return null;
   }
 
-  setVenues(sessionId: string, venues: Venue[]): void {
-    const session = this.sessions.get(sessionId);
+  async toggleMidpointMode(sessionId: string): Promise<void> {
+    const session = await this.getSession(sessionId);
     if (!session) return;
 
-    session.venues = venues;
-    this.saveToStorage();
-    this.notifyListeners(sessionId, session);
+    const newMode = session.midpointMode === 'dynamic' ? 'locked' : 'dynamic';
+
+    const { error } = await supabase
+      .from('sessions')
+      .update({ midpoint_mode: newMode })
+      .eq('id', sessionId);
+
+    if (error) {
+      console.error('Failed to toggle midpoint mode:', error);
+      return;
+    }
+
+    const updatedSession = await this.getSession(sessionId);
+    if (updatedSession) {
+      this.notifyListeners(sessionId, updatedSession);
+    }
   }
 
   subscribe(sessionId: string, callback: (session: Session) => void): () => void {
@@ -198,6 +366,9 @@ class SessionStore {
       const listeners = this.listeners.get(sessionId);
       if (listeners) {
         listeners.delete(callback);
+        if (listeners.size === 0) {
+          this.listeners.delete(sessionId);
+        }
       }
     };
   }

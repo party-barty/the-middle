@@ -1,24 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Navigation, Search, RefreshCw, Map } from 'lucide-react';
-import { geocodeAddress } from '@/lib/maps';
+import { initGoogleMaps } from '@/lib/maps';
 import { Location } from '@/types/session';
 import MapPicker from './MapPicker';
 
 interface LocationSetupProps {
   onLocationSet: (location: Location) => void;
-  currentLocation?: Location | null;
 }
 
-export default function LocationSetup({ onLocationSet, currentLocation }: LocationSetupProps) {
-  const [address, setAddress] = useState('');
+export default function LocationSetup({ onLocationSet }: LocationSetupProps) {
+  const [mode, setMode] = useState<'choice' | 'live' | 'manual'>('choice');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<'choose' | 'live' | 'manual' | 'map'>('choose');
+  const [address, setAddress] = useState('');
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; type: 'live' | 'manual' } | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [showPredictions, setShowPredictions] = useState(false);
+  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesService = useRef<google.maps.places.PlacesService | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize autocomplete service
+  useEffect(() => {
+    initGoogleMaps().then((google) => {
+      autocompleteService.current = new google.maps.places.AutocompleteService();
+      const map = new google.maps.Map(document.createElement('div'));
+      placesService.current = new google.maps.places.PlacesService(map);
+    });
+  }, []);
+
+  // Auto-request location permission on mount
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      // Check if we already have permission
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+          if (result.state === 'granted') {
+            // Auto-fetch location if already granted
+            handleLiveLocation();
+          }
+        });
+      }
+    }
+  }, []);
 
   // Live location refresh every 5 minutes
   useEffect(() => {
@@ -33,14 +62,60 @@ export default function LocationSetup({ onLocationSet, currentLocation }: Locati
             });
           },
           (error) => {
-            console.error('Failed to refresh location:', error);
+            console.error('Failed to update location:', error);
+          },
+          { 
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 60000
           }
         );
-      }, 5 * 60 * 1000); // 5 minutes
+      }, 5 * 60 * 1000);
 
       return () => clearInterval(interval);
     }
   }, [currentLocation?.type, onLocationSet]);
+
+  // Autocomplete search
+  useEffect(() => {
+    if (!address.trim() || !autocompleteService.current) {
+      setPredictions([]);
+      setShowPredictions(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      autocompleteService.current?.getPlacePredictions(
+        {
+          input: address,
+          types: ['geocode', 'establishment'],
+        },
+        (results, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+            setPredictions(results);
+            setShowPredictions(true);
+          } else {
+            setPredictions([]);
+            setShowPredictions(false);
+          }
+        }
+      );
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [address]);
+
+  // Close predictions on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        setShowPredictions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLiveLocation = () => {
     setLoading(true);
@@ -55,11 +130,13 @@ export default function LocationSetup({ onLocationSet, currentLocation }: Locati
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        onLocationSet({
+        const location = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          type: 'live',
-        });
+          type: 'live' as const,
+        };
+        setCurrentLocation(location);
+        onLocationSet(location);
         setMode('live');
         setLoading(false);
       },
@@ -67,39 +144,56 @@ export default function LocationSetup({ onLocationSet, currentLocation }: Locati
         if (error.code === error.PERMISSION_DENIED) {
           setError('Location permission denied. Please use manual entry instead.');
           setMode('manual');
+        } else if (error.code === error.TIMEOUT) {
+          setError('Location request timed out. Please try again or use manual entry.');
         } else {
           setError('Unable to get your location. Please try manual entry.');
         }
         setLoading(false);
       },
-      { enableHighAccuracy: true }
+      { 
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 30000
+      }
     );
   };
 
-  const handleManualLocation = async () => {
-    if (!address.trim()) return;
+  const handlePredictionSelect = (prediction: google.maps.places.AutocompletePrediction) => {
+    if (!placesService.current) return;
 
     setLoading(true);
     setError('');
+    setAddress(prediction.description);
+    setShowPredictions(false);
 
-    try {
-      const result = await geocodeAddress(address);
-      if (result) {
-        onLocationSet({
-          lat: result.lat,
-          lng: result.lng,
-          type: 'manual',
-          address: address,
-        });
-        setMode('manual');
-      } else {
-        setError('Address not found. Please try again.');
+    placesService.current.getDetails(
+      {
+        placeId: prediction.place_id,
+        fields: ['geometry', 'formatted_address'],
+      },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
+          const location = {
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng(),
+            type: 'manual' as const,
+            address: place.formatted_address,
+          };
+          setCurrentLocation(location);
+          onLocationSet(location);
+          setMode('manual');
+        } else {
+          setError('Unable to get location details. Please try again.');
+        }
+        setLoading(false);
       }
-    } catch (err) {
-      setError('Error finding address. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    );
+  };
+
+  const handleManualLocation = () => {
+    if (!address.trim() || predictions.length === 0) return;
+    handlePredictionSelect(predictions[0]);
   };
 
   const handleMapPicker = () => {
@@ -108,18 +202,20 @@ export default function LocationSetup({ onLocationSet, currentLocation }: Locati
   };
 
   const handleMapLocationSelect = (lat: number, lng: number, addr?: string) => {
-    onLocationSet({
+    const location = {
       lat,
       lng,
-      type: 'manual',
+      type: 'manual' as const,
       address: addr,
-    });
+    };
+    setCurrentLocation(location);
+    onLocationSet(location);
     setShowMapPicker(false);
     setMode('manual');
   };
 
   const handleSwitchMode = () => {
-    setMode('choose');
+    setMode('choice');
     setError('');
     setAddress('');
     setShowMapPicker(false);
@@ -172,7 +268,7 @@ export default function LocationSetup({ onLocationSet, currentLocation }: Locati
           )}
 
           {/* Mode Selection */}
-          {mode === 'choose' && !currentLocation && (
+          {mode === 'choice' && !currentLocation && (
             <>
               {/* Live Location */}
               <Button
@@ -195,19 +291,49 @@ export default function LocationSetup({ onLocationSet, currentLocation }: Locati
               </div>
 
               {/* Manual Location Options */}
-              <div className="space-y-3">
-                <Input
-                  placeholder="Enter address or city"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleManualLocation()}
-                  disabled={loading}
-                  className="h-12 border-lime-200 focus:border-lime-400 focus:ring-lime-400"
-                />
+              <div className="space-y-3 relative">
+                <div className="relative">
+                  <Input
+                    ref={inputRef}
+                    placeholder="Enter address or city"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleManualLocation()}
+                    onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+                    disabled={loading}
+                    className="h-12 border-lime-200 focus:border-lime-400 focus:ring-lime-400"
+                  />
+                  
+                  {/* Autocomplete Predictions */}
+                  {showPredictions && predictions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {predictions.map((prediction) => (
+                        <button
+                          key={prediction.place_id}
+                          onClick={() => handlePredictionSelect(prediction)}
+                          className="w-full px-4 py-3 text-left hover:bg-lime-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-lime-600 mt-1 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {prediction.structured_formatting.main_text}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {prediction.structured_formatting.secondary_text}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={handleManualLocation}
-                    disabled={loading || !address.trim()}
+                    disabled={loading || !address.trim() || predictions.length === 0}
                     variant="outline"
                     className="h-12 border-2 border-lime-400 hover:bg-lime-50 hover:border-lime-500 font-semibold text-lime-700"
                   >
@@ -230,20 +356,51 @@ export default function LocationSetup({ onLocationSet, currentLocation }: Locati
 
           {/* Manual Mode Active */}
           {mode === 'manual' && !currentLocation && (
-            <div className="space-y-3">
+            <div className="space-y-3 relative">
               <div className="flex items-center gap-2 mb-2">
                 <Badge variant="secondary" className="bg-amber-500 hover:bg-amber-600">
                   📌 Manual Entry
                 </Badge>
               </div>
-              <Input
-                placeholder="Enter address or city"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleManualLocation()}
-                disabled={loading}
-                className="h-12 border-lime-200 focus:border-lime-400 focus:ring-lime-400"
-              />
+              
+              <div className="relative">
+                <Input
+                  ref={inputRef}
+                  placeholder="Enter address or city"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleManualLocation()}
+                  onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+                  disabled={loading}
+                  className="h-12 border-lime-200 focus:border-lime-400 focus:ring-lime-400"
+                />
+                
+                {/* Autocomplete Predictions */}
+                {showPredictions && predictions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {predictions.map((prediction) => (
+                      <button
+                        key={prediction.place_id}
+                        onClick={() => handlePredictionSelect(prediction)}
+                        className="w-full px-4 py-3 text-left hover:bg-lime-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                      >
+                        <div className="flex items-start gap-2">
+                          <MapPin className="w-4 h-4 text-lime-600 mt-1 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {prediction.structured_formatting.main_text}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {prediction.structured_formatting.secondary_text}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <Button
                 onClick={handleManualLocation}
                 disabled={loading || !address.trim()}

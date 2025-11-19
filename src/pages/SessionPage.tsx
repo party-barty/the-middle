@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { sessionStore } from '@/lib/session-store';
-import { searchNearbyVenues } from '@/lib/maps';
+import { searchNearbyVenues, VenueSearchOptions } from '@/lib/maps';
 import { Session } from '@/types/session';
 import LocationSetup from '@/components/LocationSetup';
 import WaitingRoom from '@/components/WaitingRoom';
 import MapView from '@/components/MapView';
 import SwipeDeck from '@/components/SwipeDeck';
 import MatchScreen from '@/components/MatchScreen';
+import VenueFilters, { VenueFilterOptions } from '@/components/VenueFilters';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Users, MapPin, Lock, Unlock, Home } from 'lucide-react';
+import { Copy, Users, MapPin, Lock, Unlock, Home, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function SessionPage() {
@@ -24,6 +25,12 @@ export default function SessionPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [locationSet, setLocationSet] = useState(false);
   const [venuesLoaded, setVenuesLoaded] = useState(false);
+  const [filters, setFilters] = useState<VenueFilterOptions>({
+    radius: 2000,
+    types: ['restaurant', 'cafe', 'bar'],
+    minRating: 0,
+    maxPriceLevel: 4,
+  });
 
   useEffect(() => {
     if (!sessionId || !participantId) {
@@ -31,20 +38,29 @@ export default function SessionPage() {
       return;
     }
 
-    const currentSession = sessionStore.getSession(sessionId);
-    if (!currentSession) {
-      navigate('/');
-      return;
-    }
+    const loadSession = async () => {
+      const currentSession = await sessionStore.getSession(sessionId);
+      if (!currentSession) {
+        toast({
+          title: 'Session not found',
+          description: 'Please check the session code and try again.',
+          variant: 'destructive',
+        });
+        navigate('/');
+        return;
+      }
 
-    setSession(currentSession);
+      setSession(currentSession);
+    };
+
+    loadSession();
 
     const unsubscribe = sessionStore.subscribe(sessionId, (updatedSession) => {
       setSession(updatedSession);
     });
 
     return () => unsubscribe();
-  }, [sessionId, participantId, navigate]);
+  }, [sessionId, participantId, navigate, toast]);
 
   useEffect(() => {
     if (
@@ -57,24 +73,54 @@ export default function SessionPage() {
     }
   }, [session, venuesLoaded]);
 
-  const loadVenues = async () => {
+  const loadVenues = async (customFilters?: VenueFilterOptions) => {
     if (!session || !session.midpoint || !sessionId) return;
 
+    const searchOptions: VenueSearchOptions = customFilters || filters;
+    
+    toast({
+      title: 'Loading venues...',
+      description: 'Finding the best spots near your midpoint',
+    });
+
     setVenuesLoaded(true);
-    const venues = await searchNearbyVenues(session.midpoint.lat, session.midpoint.lng);
-    sessionStore.setVenues(sessionId, venues);
+    const venues = await searchNearbyVenues(
+      session.midpoint.lat,
+      session.midpoint.lng,
+      searchOptions
+    );
+    
+    if (venues.length === 0) {
+      toast({
+        title: 'No venues found',
+        description: 'Try adjusting your filters or expanding the search radius',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Venues loaded!',
+        description: `Found ${venues.length} venues to explore`,
+      });
+    }
+
+    await sessionStore.addVenues(sessionId, venues);
   };
 
-  const handleLocationSet = (location: { lat: number; lng: number; type: 'live' | 'manual' }) => {
+  const handleFiltersApply = () => {
+    setVenuesLoaded(false);
+    loadVenues(filters);
+  };
+
+  const handleLocationSet = async (location: { lat: number; lng: number; type: 'live' | 'manual' }) => {
     if (!sessionId || !participantId) return;
 
-    sessionStore.updateParticipantLocation(sessionId, participantId, location);
+    await sessionStore.updateParticipantLocation(sessionId, participantId, location);
     setLocationSet(true);
   };
 
-  const handleVote = (venueId: string, approved: boolean) => {
+  const handleVote = async (venueId: string, approved: boolean) => {
     if (!sessionId || !participantId) return;
-    sessionStore.addVote(sessionId, participantId, venueId, approved);
+    await sessionStore.recordVote(sessionId, participantId, venueId, approved ? 'like' : 'pass');
   };
 
   const handleCopyLink = () => {
@@ -86,10 +132,9 @@ export default function SessionPage() {
     });
   };
 
-  const toggleMidpointMode = () => {
+  const toggleMidpointMode = async () => {
     if (!sessionId || !session) return;
-    const newMode = session.midpointMode === 'dynamic' ? 'locked' : 'dynamic';
-    sessionStore.setMidpointMode(sessionId, newMode);
+    await sessionStore.toggleMidpointMode(sessionId);
   };
 
   if (!session) {
@@ -166,7 +211,6 @@ export default function SessionPage() {
             <MapView
               participants={session.participants}
               midpoint={session.midpoint}
-              venues={session.venues}
             />
           </div>
 
@@ -196,7 +240,33 @@ export default function SessionPage() {
         {/* Swipe Section */}
         <div className="w-full md:w-[480px] bg-gray-50 flex flex-col">
           <div className="p-4 bg-white border-b border-gray-200">
-            <h2 className="text-xl font-bold">Find Your Spot</h2>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-xl font-bold">Find Your Spot</h2>
+                {session.votes.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {session.votes.length} votes cast
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <VenueFilters
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  onApply={handleFiltersApply}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleFiltersApply()}
+                  className="gap-2"
+                  disabled={!venuesLoaded}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
             <p className="text-sm text-gray-600">Swipe right to like, left to pass</p>
           </div>
           <div className="flex-1 overflow-hidden">

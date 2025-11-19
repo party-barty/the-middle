@@ -2,7 +2,8 @@ import { motion } from 'framer-motion';
 import { Venue } from '@/types/session';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Star, MapPin, Navigation, Share2, PartyPopper } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Star, MapPin, Navigation, Share2, PartyPopper, DollarSign } from 'lucide-react';
 
 interface MatchScreenProps {
   venue: Venue;
@@ -25,17 +26,32 @@ export default function MatchScreen({ venue, onClose }: MatchScreenProps) {
     }
   };
 
+  const getPriceLevelDisplay = (level?: number) => {
+    if (!level) return null;
+    return '$'.repeat(level);
+  };
+
+  const formatCategory = (category: string) => {
+    return category
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.2, type: 'spring' }}
         className="w-full max-w-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
         <Card className="border-none shadow-2xl bg-white overflow-hidden">
           {/* Celebration Header */}
@@ -65,7 +81,7 @@ export default function MatchScreen({ venue, onClose }: MatchScreenProps) {
               Everyone approved this venue
             </motion.p>
 
-            {/* Decorative elements */}
+            {/* Decorative confetti */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
               {[...Array(20)].map((_, i) => (
                 <motion.div
@@ -91,15 +107,27 @@ export default function MatchScreen({ venue, onClose }: MatchScreenProps) {
 
           {/* Venue Details */}
           <div className="p-8">
-            <div className="relative h-64 rounded-lg overflow-hidden mb-6">
+            <div className="relative h-64 rounded-lg overflow-hidden mb-6 bg-gradient-to-br from-gray-200 to-gray-300">
               <img
-                src={venue.photos[0]}
+                src={venue.photoUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80'}
                 alt={venue.name}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-semibold">{venue.rating.toFixed(1)}</span>
+              
+              {/* Rating & Price Badges */}
+              <div className="absolute top-4 right-4 flex gap-2">
+                {venue.rating && (
+                  <div className="bg-white/95 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="font-bold text-sm text-gray-900">{venue.rating.toFixed(1)}</span>
+                  </div>
+                )}
+                {venue.priceLevel && (
+                  <div className="bg-white/95 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    <span className="font-bold text-sm text-gray-900">{getPriceLevelDisplay(venue.priceLevel)}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -110,20 +138,23 @@ export default function MatchScreen({ venue, onClose }: MatchScreenProps) {
                   <MapPin className="w-5 h-5" />
                   <span>{venue.address}</span>
                 </div>
-                <div className="flex items-center text-gray-600 gap-2 mt-1">
-                  <span className="text-sm">{venue.distance.toFixed(1)} km from midpoint</span>
-                </div>
+                {venue.distance && (
+                  <div className="flex items-center text-gray-600 gap-2 mt-1">
+                    <span className="text-sm">{venue.distance.toFixed(1)} km from midpoint</span>
+                  </div>
+                )}
               </div>
 
-              {venue.categories.length > 0 && (
+              {venue.types && venue.types.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {venue.categories.slice(0, 5).map((category, index) => (
-                    <span
+                  {venue.types.slice(0, 5).map((type, index) => (
+                    <Badge
                       key={index}
-                      className="px-3 py-1 bg-rose-50 text-rose-700 rounded-full text-sm font-medium"
+                      variant="secondary"
+                      className="bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border-rose-200"
                     >
-                      {category.replace(/_/g, ' ')}
-                    </span>
+                      {formatCategory(type)}
+                    </Badge>
                   ))}
                 </div>
               )}
@@ -137,13 +168,15 @@ export default function MatchScreen({ venue, onClose }: MatchScreenProps) {
                   <Navigation className="w-5 h-5 mr-2" />
                   Get Directions
                 </Button>
-                <Button
-                  onClick={handleShare}
-                  variant="outline"
-                  className="h-12 px-6 border-2"
-                >
-                  <Share2 className="w-5 h-5" />
-                </Button>
+                {navigator.share && (
+                  <Button
+                    onClick={handleShare}
+                    variant="outline"
+                    className="h-12 px-6 border-2"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </Button>
+                )}
               </div>
 
               <Button

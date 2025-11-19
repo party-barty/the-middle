@@ -5,9 +5,18 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 let loader: Loader | null = null;
 let google: typeof globalThis.google | null = null;
+let loadingPromise: Promise<typeof globalThis.google> | null = null;
 
 export async function initGoogleMaps(): Promise<typeof globalThis.google> {
   if (google) return google;
+
+  // If already loading, return the existing promise
+  if (loadingPromise) return loadingPromise;
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.error('Google Maps API key is missing!');
+    throw new Error('Google Maps API key is not configured');
+  }
 
   if (!loader) {
     loader = new Loader({
@@ -17,51 +26,116 @@ export async function initGoogleMaps(): Promise<typeof globalThis.google> {
     });
   }
 
-  google = await loader.load();
-  return google;
+  loadingPromise = loader.load().then((g) => {
+    google = g;
+    loadingPromise = null;
+    return g;
+  });
+
+  return loadingPromise;
+}
+
+// Preload Google Maps on app start
+export function preloadGoogleMaps() {
+  initGoogleMaps().catch((error) => {
+    console.error('Failed to preload Google Maps:', error);
+  });
+}
+
+export interface VenueSearchOptions {
+  radius?: number;
+  types?: string[];
+  minRating?: number;
+  maxPriceLevel?: number;
+  openNow?: boolean;
 }
 
 export async function searchNearbyVenues(
   lat: number,
   lng: number,
-  radius: number = 2000
+  options: VenueSearchOptions = {}
 ): Promise<Venue[]> {
+  const {
+    radius = 2000,
+    types = ['restaurant', 'cafe', 'bar'],
+    minRating = 0,
+    maxPriceLevel = 4,
+    openNow = false,
+  } = options;
+
   const google = await initGoogleMaps();
   
   return new Promise((resolve) => {
     const map = new google.maps.Map(document.createElement('div'));
     const service = new google.maps.places.PlacesService(map);
 
-    const request = {
-      location: new google.maps.LatLng(lat, lng),
-      radius,
-      type: 'restaurant',
-    };
+    // Search for multiple types and combine results
+    const searchPromises = types.map(type => 
+      new Promise<google.maps.places.PlaceResult[]>((resolveType) => {
+        const request: google.maps.places.PlaceSearchRequest = {
+          location: new google.maps.LatLng(lat, lng),
+          radius,
+          type: type as any,
+          ...(openNow && { openNow: true }),
+        };
 
-    service.nearbySearch(request, (results, status) => {
-      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-        const venues: Venue[] = results.slice(0, 20).map((place) => ({
+        service.nearbySearch(request, (results, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+            resolveType(results);
+          } else {
+            resolveType([]);
+          }
+        });
+      })
+    );
+
+    Promise.all(searchPromises).then((allResults) => {
+      // Combine and deduplicate results
+      const uniquePlaces = new Map<string, google.maps.places.PlaceResult>();
+      allResults.flat().forEach(place => {
+        if (place.place_id && !uniquePlaces.has(place.place_id)) {
+          uniquePlaces.set(place.place_id, place);
+        }
+      });
+
+      const venues: Venue[] = Array.from(uniquePlaces.values())
+        .filter(place => {
+          // Filter by rating
+          if (place.rating && place.rating < minRating) return false;
+          // Filter by price level
+          if (place.price_level && place.price_level > maxPriceLevel) return false;
+          return true;
+        })
+        .map((place) => ({
           id: place.place_id || Math.random().toString(36),
           name: place.name || 'Unknown',
           address: place.vicinity || '',
-          rating: place.rating || 0,
-          photos: place.photos
-            ? [place.photos[0].getUrl({ maxWidth: 600, maxHeight: 400 })]
-            : ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80'],
+          lat: place.geometry?.location?.lat() || 0,
+          lng: place.geometry?.location?.lng() || 0,
+          rating: place.rating,
+          priceLevel: place.price_level,
+          photoUrl: place.photos && place.photos.length > 0
+            ? place.photos[0].getUrl({ maxWidth: 800, maxHeight: 600 })
+            : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+          types: place.types || [],
           distance: calculateDistance(
             lat,
             lng,
             place.geometry?.location?.lat() || 0,
             place.geometry?.location?.lng() || 0
           ),
-          categories: place.types || [],
-          lat: place.geometry?.location?.lat() || 0,
-          lng: place.geometry?.location?.lng() || 0,
-        }));
-        resolve(venues);
-      } else {
-        resolve([]);
-      }
+        }))
+        .sort((a, b) => {
+          // Sort by rating first, then by distance
+          if (b.rating && a.rating) {
+            const ratingDiff = b.rating - a.rating;
+            if (Math.abs(ratingDiff) > 0.5) return ratingDiff;
+          }
+          return (a.distance || 0) - (b.distance || 0);
+        })
+        .slice(0, 30); // Get top 30 venues
+
+      resolve(venues);
     });
   });
 }

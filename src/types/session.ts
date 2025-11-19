@@ -16,18 +16,19 @@ export interface Venue {
   id: string;
   name: string;
   address: string;
-  rating: number;
-  photos: string[];
-  distance: number;
-  categories: string[];
   lat: number;
   lng: number;
+  rating?: number;
+  priceLevel?: number;
+  photoUrl?: string;
+  types?: string[];
+  distance?: number;
 }
 
 export interface Vote {
   participantId: string;
   venueId: string;
-  approved: boolean;
+  vote: 'like' | 'pass';
 }
 
 export interface Session {

@@ -12,21 +12,31 @@ export default function HomePage() {
   const [sessionCode, setSessionCode] = useState('');
   const [showJoin, setShowJoin] = useState(false);
 
-  const handleCreateSession = () => {
+  const handleCreateSession = async () => {
     if (!name.trim()) return;
-    const session = sessionStore.createSession(name);
-    const participant = session.participants[0];
-    navigate(`/session/${session.id}?participantId=${participant.id}`);
+    try {
+      const session = await sessionStore.createSession(name);
+      const participant = session.participants[0];
+      navigate(`/session/${session.id}?participantId=${participant.id}`);
+    } catch (error) {
+      console.error('Failed to create session:', error);
+      alert('Failed to create session. Please try again.');
+    }
   };
 
-  const handleJoinSession = () => {
+  const handleJoinSession = async () => {
     if (!name.trim() || !sessionCode.trim()) return;
     const code = sessionCode.toUpperCase();
-    const participant = sessionStore.joinSession(code, name);
-    if (participant) {
-      navigate(`/session/${code}?participantId=${participant.id}`);
-    } else {
-      alert('Session not found. Please check the session code and try again.');
+    try {
+      const participant = await sessionStore.joinSession(code, name);
+      if (participant) {
+        navigate(`/session/${code}?participantId=${participant.id}`);
+      } else {
+        alert('Session not found. Please check the session code and try again.');
+      }
+    } catch (error) {
+      console.error('Failed to join session:', error);
+      alert('Failed to join session. Please try again.');
     }
   };
 
