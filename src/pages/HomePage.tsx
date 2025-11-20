@@ -22,9 +22,13 @@ import {
 } from "lucide-react";
 import { sessionStore } from "@/lib/session-store";
 
+interface RouteParams {
+  sessionId?: string;
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
-  const { sessionId } = useParams<{ sessionId?: string }>();
+  const { sessionId } = useParams<RouteParams>();
   const [name, setName] = useState("");
   const [sessionCode, setSessionCode] = useState("");
   const [showJoin, setShowJoin] = useState(false);

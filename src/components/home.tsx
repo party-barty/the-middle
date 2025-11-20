@@ -1,8 +1,12 @@
-function Home() {
-  return (
-    <div className="w-screen h-screen">
-    </div>
-  )
-}
+import React from "react";
 
-export default Home
+export interface HomeProps {}
+
+const Home: React.FC<HomeProps> = () => {
+  return (
+    <div className="w-screen h-screen bg-background">
+    </div>
+  );
+};
+
+export default Home;

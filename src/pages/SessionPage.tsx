@@ -18,8 +18,12 @@ import { Badge } from '@/components/ui/badge';
 import { Copy, Users, MapPin, Lock, Unlock, Home, RefreshCw, Settings, TrendingUp } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
+interface RouteParams {
+  sessionId: string;
+}
+
 export default function SessionPage() {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { sessionId } = useParams<RouteParams>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();

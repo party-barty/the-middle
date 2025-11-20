@@ -2,8 +2,8 @@ import { Session, Participant, Location, Venue, Vote, SessionHistory, VenueRevie
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  import.meta.env.VITE_SUPABASE_URL as string,
+  import.meta.env.VITE_SUPABASE_ANON_KEY as string
 );
 
 // Simple store with Supabase backend
@@ -19,7 +19,6 @@ class SessionStore {
     const participantId = Math.random().toString(36).substring(2);
 
     try {
-      // Create session
       const { error: sessionError } = await supabase
         .from('sessions')
         .insert({
@@ -35,7 +34,6 @@ class SessionStore {
         throw new Error(`Failed to create session: ${sessionError.message}`);
       }
 
-      // Create participant (host)
       const { error: participantError } = await supabase
         .from('participants')
         .insert({
@@ -66,7 +64,6 @@ class SessionStore {
   }
 
   async getSession(sessionId: string): Promise<Session | null> {
-    // Get session
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select('*')
@@ -78,68 +75,72 @@ class SessionStore {
       return null;
     }
 
-    // Get participants
     const { data: participantsData, error: participantsError } = await supabase
       .from('participants')
       .select('*')
       .eq('session_id', sessionId);
 
-    if (participantsError) {
+    if (participantsError || !participantsData) {
       console.error('Failed to fetch participants:', participantsError);
       return null;
     }
 
-    // Get venues
     const { data: venuesData } = await supabase
       .from('venues')
       .select('*')
       .eq('session_id', sessionId);
 
-    // Get votes
     const { data: votesData } = await supabase
       .from('votes')
       .select('*')
       .eq('session_id', sessionId);
 
-    const participants: Participant[] = participantsData.map(p => ({
+    const participants: Participant[] = participantsData.map((p): Participant => ({
       id: p.id,
       name: p.name,
-      location: p.location_lat && p.location_lng ? {
-        lat: p.location_lat,
-        lng: p.location_lng,
-        type: p.location_type as 'live' | 'manual',
-        address: p.location_address,
-      } : null,
+      location:
+        p.location_lat && p.location_lng
+          ? {
+              lat: p.location_lat,
+              lng: p.location_lng,
+              type: p.location_type as Location['type'],
+              address: p.location_address ?? undefined,
+            }
+          : null,
       isReady: p.is_ready,
     }));
 
-    const venues: Venue[] = (venuesData || []).map(v => ({
+    const venues: Venue[] = (venuesData ?? []).map((v): Venue => ({
       id: v.id,
       name: v.name,
-      category: v.category || 'restaurant',
+      category: v.category ?? 'restaurant',
       address: v.address,
       lat: v.lat,
       lng: v.lng,
       location: { lat: v.lat, lng: v.lng },
-      rating: v.rating,
-      priceLevel: v.price_level,
-      photoUrl: v.photo_url,
-      types: v.types,
-      distance: v.distance,
+      rating: v.rating ?? undefined,
+      priceLevel: v.price_level ?? undefined,
+      photoUrl: v.photo_url ?? undefined,
+      types: v.types ?? [],
+      distance: v.distance ?? undefined,
     }));
 
-    const votes: Vote[] = (votesData || []).map(v => ({
+    const votes: Vote[] = (votesData ?? []).map((v): Vote => ({
       participantId: v.participant_id,
       venueId: v.venue_id,
-      vote: v.vote as 'like' | 'pass',
+      vote: v.vote as Vote['vote'],
     }));
 
-    // Calculate midpoint
-    const readyParticipants = participants.filter(p => p.location);
-    let midpoint = null;
+    const readyParticipants = participants.filter((p) => p.location !== null);
+    let midpoint: Session['midpoint'] = null;
+
     if (readyParticipants.length > 0) {
-      const avgLat = readyParticipants.reduce((sum, p) => sum + p.location!.lat, 0) / readyParticipants.length;
-      const avgLng = readyParticipants.reduce((sum, p) => sum + p.location!.lng, 0) / readyParticipants.length;
+      const avgLat =
+        readyParticipants.reduce((sum, p) => sum + (p.location?.lat ?? 0), 0) /
+        readyParticipants.length;
+      const avgLng =
+        readyParticipants.reduce((sum, p) => sum + (p.location?.lng ?? 0), 0) /
+        readyParticipants.length;
       midpoint = { lat: avgLat, lng: avgLng };
     }
 
@@ -147,16 +148,16 @@ class SessionStore {
       id: sessionData.id,
       participants,
       midpoint,
-      midpointMode: sessionData.midpoint_mode as 'dynamic' | 'locked',
+      midpointMode: sessionData.midpoint_mode as Session['midpointMode'],
       venues,
       votes,
-      matchedVenue: sessionData.matched_venue_id 
-        ? venues.find(v => v.id === sessionData.matched_venue_id) || null
+      matchedVenue: sessionData.matched_venue_id
+        ? venues.find((v) => v.id === sessionData.matched_venue_id) ?? null
         : null,
       createdAt: sessionData.created_at,
       hostId: sessionData.host_id,
-      isLocked: sessionData.is_locked || false,
-      maxParticipants: sessionData.max_participants || 10,
+      isLocked: sessionData.is_locked ?? false,
+      maxParticipants: sessionData.max_participants ?? 10,
     };
 
     return session;
