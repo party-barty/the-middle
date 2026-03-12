@@ -27,11 +27,11 @@ All code, database schema, and infrastructure documentation exist in the reposit
 
 If documentation conflicts, trust files in this order:
 
-1. PRD documents
-2. ARCHITECTURE.md
-3. DEVELOPMENT_GUIDE.md
-4. PROJECT_STATE.md
-5. CLAUDE_CONTEXT.md
+1. PRD documents  
+2. ARCHITECTURE.md  
+3. DEVELOPMENT_GUIDE.md  
+4. PROJECT_STATE.md  
+5. CLAUDE_CONTEXT.md  
 
 Claude should never override architecture described in ARCHITECTURE.md without explicit instruction.
 
@@ -41,21 +41,21 @@ Claude should never override architecture described in ARCHITECTURE.md without e
 
 Frontend
 
-React  
-TypeScript  
-Vite  
-TailwindCSS
+- React  
+- TypeScript  
+- Vite  
+- TailwindCSS  
 
 Backend
 
-Supabase  
-PostgreSQL
+- Supabase  
+- PostgreSQL  
 
 Infrastructure
 
-GitHub (source control)  
-Vercel (hosting)  
-Supabase (database + auth)
+- GitHub (source control)  
+- Vercel (hosting)  
+- Supabase (database + auth)  
 
 ---
 
@@ -69,15 +69,17 @@ There is currently **no custom backend server**.
 
 Architecture:
 
-User Browser  
-↓  
-React Frontend  
-↓  
-Supabase Client  
-↓  
-Supabase API  
-↓  
+```
+User Browser
+↓
+React Frontend
+↓
+Supabase Client
+↓
+Supabase API
+↓
 PostgreSQL Database
+```
 
 Claude must preserve this architecture unless explicitly instructed to change it.
 
@@ -85,24 +87,28 @@ Claude must preserve this architecture unless explicitly instructed to change it
 
 # Repository Structure
 
+```
 the-middle/
 
-public/  
-src/  
-components/  
-pages/  
-lib/
+public/
+src/
+  components/
+  pages/
+  lib/
 
-supabase/  
-migrations/
+supabase/
+  migrations/
 
 backup.sql
+```
 
 Claude should maintain this structure when adding new files.
 
 New feature code should live inside:
 
+```
 src/
+```
 
 ---
 
@@ -116,7 +122,7 @@ Avoid deeply nested component trees.
 
 Prefer:
 
-composition over inheritance
+- composition over inheritance
 
 Use TailwindCSS for styling.
 
@@ -130,8 +136,10 @@ Database is hosted on Supabase.
 
 Schema recovery exists in two locations:
 
-supabase/migrations/  
+```
+supabase/migrations/
 backup.sql
+```
 
 Claude must NOT:
 
@@ -153,10 +161,10 @@ Avoid writing direct SQL queries in frontend code unless necessary.
 
 Prefer Supabase client methods:
 
-select  
-insert  
-update  
-delete
+- select
+- insert
+- update
+- delete
 
 Authentication should remain handled through Supabase Auth.
 
@@ -166,19 +174,27 @@ Authentication should remain handled through Supabase Auth.
 
 Install dependencies
 
+```
 npm install
+```
 
 Start development server
 
+```
 npm run dev
+```
 
 Build project
 
+```
 npm run build
+```
 
 Preview production build
 
+```
 npm run preview
+```
 
 ---
 
@@ -200,9 +216,11 @@ Claude must NOT run destructive infrastructure commands.
 
 Never run commands like:
 
-terraform destroy  
-supabase db reset  
+```
+terraform destroy
+supabase db reset
 rm -rf
+```
 
 unless the user explicitly requests them.
 
@@ -224,10 +242,10 @@ Claude should follow this workflow:
 
 The following files provide project knowledge:
 
-CLAUDE_CONTEXT.md  
-ARCHITECTURE.md  
-DEVELOPMENT_GUIDE.md  
-PROJECT_STATE.md
+- CLAUDE_CONTEXT.md  
+- ARCHITECTURE.md  
+- DEVELOPMENT_GUIDE.md  
+- PROJECT_STATE.md  
 
 Claude should read these files before implementing changes.
 
@@ -262,4 +280,4 @@ Claude should avoid making speculative architectural changes.
 
 When uncertain:
 
-ASK BEFORE MODIFYING ARCHITECTURE.
+**ASK BEFORE MODIFYING ARCHITECTURE.**
