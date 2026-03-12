@@ -1,64 +1,146 @@
-# React + TypeScript + Vite
+# The Middle
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A location-based meetup coordination app that helps groups find a mutually convenient meeting spot using midpoint calculation and swipe-based venue voting.
 
-Currently, two official plugins are available:
+Homepage: 
+<img width="1832" height="1522" alt="themiddle desktop" src="https://github.com/user-attachments/assets/a9e787d6-b943-43e5-8583-a8fba0aabc99" />
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Icon: 
+<img width="192" height="192" alt="The Middle-96x96" src="https://github.com/user-attachments/assets/24e3193e-e1f0-49ce-b0a1-a093626bbd44" />
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
 
-- Configure the top-level `parserOptions` property like this:
+# Overview
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+**The Middle** calculates the geographic midpoint between participants and recommends nearby venues where everyone can meet.
+
+Participants swipe on venue cards until a match is found that everyone agrees on.
+
+Example use cases:
+
+- meeting friends halfway between cities
+- choosing restaurants between neighborhoods
+- coordinating group meetups
+- planning dates or casual hangouts
+
+---
+
+# Table of Contents
+
+- Overview
+- Tech Stack
+- Quick Start
+- Environment Variables
+- Documentation
+- Project Status
+
+---
+
+# Tech Stack
+
+## Frontend
+
+- React
+- TypeScript
+- Vite
+- TailwindCSS
+
+## Backend
+
+- Supabase
+- PostgreSQL
+- Realtime updates
+
+## Infrastructure
+
+- GitHub (source control)
+- Vercel (hosting)
+- Supabase (backend services)
+
+---
+
+# Quick Start
+
+Clone the repository:
+
+```
+git clone https://github.com/party-barty/the-middle.git
+cd the-middle
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+Install dependencies:
 
+```
+npm install
+```
 
-# PRD from Tempo
+Start the development server:
 
-## The Middle - Location-Based Social Discovery App
+```
+npm run dev
+```
 
-A web app that helps groups of friends find the perfect meetup spot by calculating the geographic midpoint between their locations and suggesting nearby venues they'll all enjoy, with swipe-based voting on recommendations.
+Open the application:
 
-## Key Features & Functionality
+```
+http://localhost:5173
+```
 
-- **User Profiles & Authentication**: Users create profiles and can link accounts (Google, Yelp, Beli) for personalized recommendations based on preferences and behavior
-- **Friend Location Sharing**: Real-time map view showing friends' current locations with permission-based sharing
-- **Midpoint Calculator**: Automatically calculates the geographic center point between 2+ friends and displays it on an interactive map
-- **Personalized Venue Recommendations**: Shows nearby restaurants, cafes, bars, and lounges around the midpoint with ratings, photos, and details tailored to each user's preferences
-- **Swipe Voting Interface**: Tinder-style card stack where friends swipe right/left on venue suggestions, with matches revealed when everyone agrees
-- **Group Session**: Create a session link to invite friends, see who's joined, and track voting progress in real-time
+---
 
+# Environment Variables
 
-## UI Components & Style
+Create a `.env` file in the project root.
 
-- Bold, modern design with vibrant gradients and smooth animations
-- Mobile-first responsive design optimized for phone usage
-- Split-screen layout on desktop: map on one side, venue cards on the other
-- Tabbed navigation on mobile for seamless switching between map and venues
-- Clean cards showing venue images, name, distance from midpoint, rating stars, and quick details
-- Floating action button to create new sessions and manage friend groups
+Example configuration:
 
+```
+VITE_SUPABASE_URL=your_project_url
+VITE_SUPABASE_ANON_KEY=your_public_key
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
 
-## Default Location
-Hermosa Beach, CA serves as the default location for the app
+These values can be obtained from:
 
+```
+Supabase Dashboard → Project Settings → API
+```
 
-## Primary Use Case
-Finding centrally located, communally agreed upon places to eat or meet up (bars, restaurants, lounges, cafes)
+---
+
+# Documentation
+
+Project documentation is located in the `/docs` directory.
+
+```
+docs/
+
+ARCHITECTURE.md
+DEVELOPMENT_GUIDE.md
+PROJECT_STATE.md
+tempo_sundown_summary.md
+PRD.md
+```
+
+These files describe the system architecture, development workflow, product design, and project history.
+
+---
+
+# Project Status
+
+Status:
+
+```
+Paused
+```
+
+The project was originally built using **Tempo AI** and later migrated to a standard GitHub development workflow.
+
+The codebase, documentation, and database schema are preserved so development can resume at any time.
+
+---
+
+# License
+
+This project is currently private and under active development planning.

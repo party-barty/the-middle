@@ -1,5 +1,18 @@
 # The Middle — Product Requirements Document
 
+## Document Status
+
+Source: Tempo AI Generated PRD  
+Date Created: 2025  
+Status: Draft / Reference Document  
+
+This document describes the original product vision generated during the
+Tempo development phase. The current architecture and development state
+are documented separately in:
+
+- ARCHITECTURE.md
+- PROJECT_STATE.md
+
 ## Product Overview
 
 **The Middle** is a responsive web app that calculates the geographic midpoint between friend groups and recommends nearby venues through a swipe-based voting system, achieving a match when all participants approve the same location.
