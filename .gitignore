@@ -32,3 +32,7 @@ core
 
 .github/
 
+# Supabase
+supabase/.temp
+.env
+node_modules
