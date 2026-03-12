@@ -6,18 +6,23 @@ This document records the process of shutting down the Tempo development environ
 
 The goal of the sundown process was to:
 
-- Preserve the full application code
-- Preserve the database schema
-- Eliminate unnecessary infrastructure costs
-- Maintain the ability to restart development later
-- Transition development ownership fully to the GitHub repository
+- preserve the full application code
+- preserve the database schema
+- eliminate unnecessary infrastructure costs
+- maintain the ability to restart development later
+- transition development ownership fully to the GitHub repository
 
 ---
 
 # Project Overview
 
-Project Name: The Middle  
-Repository: https://github.com/party-barty/the-middle
+Project Name: The Middle
+
+Repository
+
+```
+https://github.com/party-barty/the-middle
+```
 
 The Middle was initially built using Tempo Labs, which generates production React code and integrates with backend services such as Supabase.
 
@@ -27,20 +32,27 @@ Tempo acts as an AI-assisted development interface that generates code directly 
 
 # Technology Stack
 
-Frontend
+## Frontend
+
 - React
 - TypeScript
 - Vite
 - TailwindCSS
 
-Backend
-- Supabase (Postgres database + authentication + API)
+## Backend
 
-Infrastructure
+- Supabase
+- PostgreSQL database
+- authentication
+- API
+
+## Infrastructure
+
 - Vercel (hosting and domain)
 - GitHub (source control)
 
-Development Tool (removed)
+## Development Tool (Removed)
+
 - Tempo AI builder
 
 ---
@@ -53,7 +65,9 @@ The Supabase database schema was exported using the Supabase CLI.
 
 Command used:
 
+```
 supabase db dump --file backup.sql
+```
 
 This generated a SQL file containing:
 
@@ -65,7 +79,9 @@ This generated a SQL file containing:
 
 File location in the repository:
 
+```
 backup.sql
+```
 
 This ensures the database structure can be recreated in the future.
 
@@ -75,11 +91,13 @@ This ensures the database structure can be recreated in the future.
 
 The repository already contained Supabase migration history:
 
+```
 supabase/migrations/
+```
 
 These migration files track the evolution of the database schema and allow the database to be recreated through migrations.
 
-Between the migration history and the backup.sql snapshot, the database schema is fully recoverable.
+Between the migration history and the `backup.sql` snapshot, the database schema is fully recoverable.
 
 ---
 
@@ -89,9 +107,11 @@ The database snapshot was added to version control.
 
 Commands used:
 
-git add backup.sql  
-git commit -m "Add Supabase schema backup"  
+```
+git add backup.sql
+git commit -m "Add Supabase schema backup"
 git push
+```
 
 This ensures the schema snapshot lives alongside the application code.
 
@@ -131,43 +151,36 @@ Cancelling Tempo does not affect:
 
 # Current Infrastructure State
 
-Service: GitHub  
-Status: Active  
-Purpose: Source control
-
-Service: Supabase  
-Status: Free Tier  
-Purpose: Database and authentication
-
-Service: Vercel  
-Status: Free Tier  
-Purpose: Application hosting
-
-Service: Domain (themiddle.me)  
-Status: Active  
-Purpose: Public URL
-
-Service: Tempo  
-Status: Cancelled  
-Purpose: AI builder removed
+| Service | Status | Purpose |
+|--------|--------|--------|
+| GitHub | Active | Source control |
+| Supabase | Free Tier | Database and authentication |
+| Vercel | Free Tier | Application hosting |
+| Domain (`themiddle.me`) | Active | Public URL |
+| Tempo | Cancelled | AI builder removed |
 
 ---
 
 # Current Operating Cost
 
-Supabase: $0/month  
-Vercel: $0/month  
-Tempo: $0/month  
-Domain: approximately $10–15 per year
+```
+Supabase: $0/month
+Vercel: $0/month
+Tempo: $0/month
+Domain: ~$10–15/year
+```
 
 Total infrastructure cost:
 
+```
 $0/month
+```
 
 ---
 
 # Repository Structure
 
+```
 the-middle
 │
 ├ public
@@ -180,6 +193,7 @@ the-middle
 ├ vite.config.ts
 ├ tailwind.config.js
 └ README.md
+```
 
 ---
 
@@ -187,35 +201,47 @@ the-middle
 
 To resume development in the future:
 
-Step 1 — Clone the repository
+### Step 1 — Clone the repository
 
-git clone https://github.com/party-barty/the-middle.git  
+```
+git clone https://github.com/party-barty/the-middle.git
 cd the-middle
+```
 
-Step 2 — Install dependencies
+### Step 2 — Install dependencies
 
+```
 npm install
+```
 
-Step 3 — Run development server
+### Step 3 — Run development server
 
+```
 npm run dev
+```
 
-Application should run at:
+The application should run at:
 
+```
 http://localhost:5173
+```
 
 ---
 
-# Reconnecting Supabase (if needed)
+# Reconnecting Supabase (If Needed)
 
 If creating a new Supabase project:
 
-supabase link --project-ref <project-id>  
+```
+supabase link --project-ref <project-id>
 supabase db push
+```
 
 Alternatively restore the schema manually:
 
+```
 psql < backup.sql
+```
 
 ---
 
@@ -223,7 +249,7 @@ psql < backup.sql
 
 Future development will likely use:
 
-- Local development environment
+- local development environment
 - Claude Code for AI-assisted development
 - GitHub as the primary source of truth
 
@@ -233,6 +259,6 @@ Tempo is no longer required for development.
 
 # Project Status
 
-The Middle is currently paused but fully recoverable.
+The Middle is currently **paused but fully recoverable**.
 
 All infrastructure costs have been minimized while preserving the complete application and database schema.
