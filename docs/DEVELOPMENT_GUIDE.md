@@ -19,30 +19,32 @@ This document is intended to help a developer restart the project quickly even a
 
 # Development Stack
 
-Frontend
+## Frontend
 
-React  
-TypeScript  
-Vite  
-TailwindCSS
+- React  
+- TypeScript  
+- Vite  
+- TailwindCSS  
 
-Backend
+## Backend
 
-Supabase  
-(PostgreSQL database + authentication + API)
+- Supabase  
+- PostgreSQL database  
+- Authentication  
+- API  
 
-Infrastructure
+## Infrastructure
 
-GitHub (source control)  
-Vercel (hosting and deployment)  
-Supabase (backend services)
+- GitHub (source control)  
+- Vercel (hosting and deployment)  
+- Supabase (backend services)  
 
-Development Tools
+## Development Tools
 
-Node.js  
-npm  
-Supabase CLI  
-Git
+- Node.js  
+- npm  
+- Supabase CLI  
+- Git  
 
 ---
 
@@ -50,19 +52,21 @@ Git
 
 Install the following tools before working on the project.
 
-Node.js (recommended version: LTS)
-
-Git
-
-Supabase CLI
+- Node.js (recommended version: LTS)
+- Git
+- Supabase CLI
 
 Mac install example:
 
+```
 brew install supabase/tap/supabase
+```
 
 Verify installation:
 
+```
 supabase --version
+```
 
 ---
 
@@ -70,15 +74,21 @@ supabase --version
 
 Clone the repository:
 
+```
 git clone https://github.com/party-barty/the-middle.git
+```
 
 Move into the project folder:
 
+```
 cd the-middle
+```
 
 Install dependencies:
 
+```
 npm install
+```
 
 ---
 
@@ -86,11 +96,15 @@ npm install
 
 Start the local development server:
 
+```
 npm run dev
+```
 
 The application should be available at:
 
+```
 http://localhost:5173
+```
 
 Vite provides hot module reload so changes update automatically in the browser.
 
@@ -104,8 +118,10 @@ These values are stored in a `.env` file.
 
 Example structure:
 
-VITE_SUPABASE_URL=your_project_url  
+```
+VITE_SUPABASE_URL=your_project_url
 VITE_SUPABASE_ANON_KEY=your_public_key
+```
 
 These values can be found in the Supabase dashboard under:
 
@@ -119,17 +135,25 @@ The `.env` file should **not be committed to GitHub**.
 
 If the original Supabase project still exists:
 
-1. Login to Supabase CLI
+### Login to Supabase CLI
 
+```
 supabase login
+```
 
-2. Link the project
+### Link the project
 
+```
 supabase link --project-ref PROJECT_ID
+```
 
-3. Verify connection
+### Verify connection
 
+```
 supabase status
+```
+
+The Supabase CLI manages database operations and local development workflows. :contentReference[oaicite:2]{index=2}
 
 ---
 
@@ -137,20 +161,28 @@ supabase status
 
 The project includes two ways to restore the database schema.
 
-Method 1 — Migration history
+### Method 1 — Migration history
 
+```
 supabase db push
+```
 
-Method 2 — SQL snapshot
+### Method 2 — SQL snapshot
 
+```
 psql < backup.sql
+```
 
 Files involved:
 
-supabase/migrations/  
+```
+supabase/migrations/
 backup.sql
+```
 
 These ensure the database structure can always be recreated.
+
+Supabase tracks schema changes through migration files stored in version control. :contentReference[oaicite:3]{index=3}
 
 ---
 
@@ -160,7 +192,7 @@ The project currently uses the Supabase **Free Tier**.
 
 Important behavior:
 
-Free projects are automatically paused after approximately 7 days of inactivity to conserve resources.
+Free projects are automatically paused after approximately **7 days of inactivity** to conserve resources.
 
 This does not delete the database.
 
@@ -168,7 +200,7 @@ To restore a paused project:
 
 1. Open Supabase dashboard
 2. Select the project
-3. Click Resume
+3. Click **Resume**
 
 The database will become active again.
 
@@ -176,26 +208,36 @@ The database will become active again.
 
 # Typical Development Workflow
 
-1. Pull the latest code
+### Pull the latest code
 
+```
 git pull
+```
 
-2. Start development server
+### Start development server
 
+```
 npm run dev
+```
 
-3. Edit source files
+### Edit source files
 
+```
 src/
+```
 
-4. Commit changes
+### Commit changes
 
+```
 git add .
 git commit -m "describe change"
+```
 
-5. Push to repository
+### Push to repository
 
+```
 git push
+```
 
 ---
 
@@ -237,13 +279,10 @@ The deployed site connects to Supabase for backend functionality.
 
 If the application cannot connect to the database:
 
-Check environment variables.
-
-Verify Supabase project is active.
-
-Confirm Supabase API keys.
-
-Restart the development server.
+- Check environment variables
+- Verify Supabase project is active
+- Confirm Supabase API keys
+- Restart the development server
 
 ---
 
@@ -267,13 +306,16 @@ The development environment is ready to resume work.
 
 The project can be started locally with:
 
-npm install  
+```
+npm install
 npm run dev
+```
 
 The codebase, database schema, and infrastructure are all preserved.
 
 ---
 
+```mermaid
 flowchart TD
 
 Developer --> LocalMachine
@@ -283,3 +325,4 @@ Developer --> Git
 Git --> GitHub
 GitHub --> Vercel
 Vercel --> ProductionSite
+```
